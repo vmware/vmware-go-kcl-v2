@@ -2,3 +2,21 @@
 *
 # Except this file
 !.gitignore
+=======
+/src/gen
+/src/vendor
+!/src/vendor/manifest
+/bin
+/pkg
+/tmp
+/log
+/vms
+/run
+/go
+.hmake
+.hmakerc
+.project
+.idea
+.vscode
+*_mock_test.go
+filenames
