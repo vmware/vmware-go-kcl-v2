@@ -5,6 +5,8 @@ read our [Developer Certificate of Origin](https://cla.vmware.com/dco). All cont
 signed as described on that page. Your signature certifies that you wrote the patch or have the right to pass it on
 as an open-source patch.
 
+## Community
+
 ## Contribution Flow
 
 This is a rough outline of what a contributor's workflow looks like:
@@ -31,7 +33,7 @@ When your branch gets out of sync with the vmware/main branch, use the following
 ``` shell
 git checkout my-new-feature
 git fetch -a
-git pull --rebase upstream main
+git pull --rebase upstream master
 git push --force-with-lease origin my-new-feature
 ```
 
