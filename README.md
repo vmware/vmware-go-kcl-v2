@@ -27,3 +27,40 @@ as an open-source patch. For more detailed information, refer to [CONTRIBUTING.m
 
 ## License
 
+### Build & Run
+
+```sh
+hmake
+
+# security scan
+hmake scanast
+
+# run test
+hmake check
+
+# run integration test
+# update the worker_test.go to let it point to your Kinesis stream
+hmake test
+```
+
+## Documentation
+
+VMware-Go-KCL matches exactly the same interface and programming model from original Amazon KCL, the best place for getting reference, tutorial is from Amazon itself:
+
+- [Developing Consumers Using the Kinesis Client Library](https://docs.aws.amazon.com/streams/latest/dev/developing-consumers-with-kcl.html)
+- [Troubleshooting](https://docs.aws.amazon.com/streams/latest/dev/troubleshooting-consumers.html)
+- [Advanced Topics](https://docs.aws.amazon.com/streams/latest/dev/advanced-consumers.html)
+
+## Releases & Major Branches
+
+
+## Contributing
+
+The vmware-go-kcl project team welcomes contributions from the community. If you wish to contribute code and you have not
+signed our contributor license agreement (CLA), our bot will update the issue when you open a Pull Request. For any
+questions about the CLA process, please refer to our [FAQ](https://cla.vmware.com/faq). For more detailed information,
+refer to [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT License
