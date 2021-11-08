@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package config
 // The implementation is derived from https://github.com/awslabs/amazon-kinesis-client
 /*
  * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -165,25 +167,24 @@ func (c *KinesisClientLibConfiguration) WithMaxLeasesForWorker(n int) *KinesisCl
 	return c
 }
 
-/**
- * Controls how long the KCL will sleep if no records are returned from Kinesis
- *
- * <p>
- * This value is only used when no records are returned; if records are returned, the {@link com.amazonaws.services.kinesis.clientlibrary.lib.worker.ProcessTask} will
- * immediately retrieve the next set of records after the call to
- * {@link com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor#processRecords(ProcessRecordsInput)}
- * has returned. Setting this value to high may result in the KCL being unable to catch up. If you are changing this
- * value it's recommended that you enable {@link #withCallProcessRecordsEvenForEmptyRecordList(boolean)}, and
- * monitor how far behind the records retrieved are by inspecting
- * {@link com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput#getMillisBehindLatest()}, and the
- * <a href=
- * "http://docs.aws.amazon.com/streams/latest/dev/monitoring-with-cloudwatch.html#kinesis-metrics-stream">CloudWatch
- * Metric: GetRecords.MillisBehindLatest</a>
- * </p>
- *
- * @param IdleTimeBetweenReadsInMillis
- *            how long to sleep between GetRecords calls when no records are returned.
- * @return KinesisClientLibConfiguration
+/* WithIdleTimeBetweenReadsInMillis
+  Controls how long the KCL will sleep if no records are returned from Kinesis
+ 
+  <p>
+  This value is only used when no records are returned; if records are returned, the {@link com.amazonaws.services.kinesis.clientlibrary.lib.worker.ProcessTask} will
+  immediately retrieve the next set of records after the call to
+  {@link com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor#processRecords(ProcessRecordsInput)}
+  has returned. Setting this value to high may result in the KCL being unable to catch up. If you are changing this
+  value it's recommended that you enable {@link #withCallProcessRecordsEvenForEmptyRecordList(boolean)}, and
+  monitor how far behind the records retrieved are by inspecting
+  {@link com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput#getMillisBehindLatest()}, and the
+  <a href=
+  "http://docs.aws.amazon.com/streams/latest/dev/monitoring-with-cloudwatch.html#kinesis-metrics-stream">CloudWatch
+  Metric: GetRecords.MillisBehindLatest</a>
+  </p>
+ 
+  @param IdleTimeBetweenReadsInMillis: how long to sleep between GetRecords calls when no records are returned.
+  @return KinesisClientLibConfiguration
  */
 func (c *KinesisClientLibConfiguration) WithIdleTimeBetweenReadsInMillis(idleTimeBetweenReadsInMillis int) *KinesisClientLibConfiguration {
 	checkIsValuePositive("IdleTimeBetweenReadsInMillis", idleTimeBetweenReadsInMillis)

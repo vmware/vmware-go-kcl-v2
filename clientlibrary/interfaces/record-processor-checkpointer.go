@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package interfaces
 // The implementation is derived from https://github.com/awslabs/amazon-kinesis-client
 /*
  * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -37,7 +39,8 @@ type (
 	IPreparedCheckpointer interface {
 		GetPendingCheckpoint() *ExtendedSequenceNumber
 
-		/**
+		// Checkpoint
+		/*
 		 * This method will record a pending checkpoint.
 		 *
 		 * @error ThrottlingError Can't store checkpoint. Can be caused by checkpointing too frequently.
@@ -56,13 +59,15 @@ type (
 		Checkpoint() error
 	}
 
-	/**
+	// IRecordProcessorCheckpointer
+	/*
 	 * Used by RecordProcessors when they want to checkpoint their progress.
 	 * The Kinesis Client Library will pass an object implementing this interface to RecordProcessors, so they can
 	 * checkpoint their progress.
 	 */
 	IRecordProcessorCheckpointer interface {
-		/**
+		// Checkpoint
+		/*
 		 * This method will checkpoint the progress at the provided sequenceNumber. This method is analogous to
 		 * {@link #checkpoint()} but provides the ability to specify the sequence number at which to
 		 * checkpoint.
@@ -85,6 +90,7 @@ type (
 		 */
 		Checkpoint(sequenceNumber *string) error
 
+		// PrepareCheckpoint
 		/**
 		 * This method will record a pending checkpoint at the provided sequenceNumber.
 		 *

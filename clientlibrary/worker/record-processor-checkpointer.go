@@ -16,11 +16,11 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package worker
 package worker
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
 	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
@@ -28,7 +28,9 @@ import (
 
 type (
 
-	/* Objects of this class are prepared to checkpoint at a specific sequence number. They use an
+	// PreparedCheckpointer
+	/*
+	 * Objects of this class are prepared to checkpoint at a specific sequence number. They use an
 	 * IRecordProcessorCheckpointer to do the actual checkpointing, so their checkpoint is subject to the same 'didn't go
 	 * backwards' validation as a normal checkpoint.
 	 */
@@ -37,7 +39,8 @@ type (
 		checkpointer                    kcl.IRecordProcessorCheckpointer
 	}
 
-	/**
+	//RecordProcessorCheckpointer
+	/*
 	 * This class is used to enable RecordProcessors to checkpoint their progress.
 	 * The Amazon Kinesis Client Library will instantiate an object and provide a reference to the application
 	 * RecordProcessor instance. Amazon Kinesis Client Library will create one instance per shard assignment.

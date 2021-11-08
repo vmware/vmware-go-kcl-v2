@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package config
 // The implementation is derived from https://github.com/awslabs/amazon-kinesis-client
 /*
  * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -54,85 +56,85 @@ const (
 	// AT_TIMESTAMP start from the record at or after the specified server-side Timestamp.
 	AT_TIMESTAMP
 
-	// The location in the shard from which the KinesisClientLibrary will start fetching records from
+	// DefaultInitialPositionInStream The location in the shard from which the KinesisClientLibrary will start fetching records from
 	// when the application starts for the first time and there is no checkpoint for the shard.
 	DefaultInitialPositionInStream = LATEST
 
-	// Fail over time in milliseconds. A worker which does not renew it's lease within this time interval
+	// DefaultFailoverTimeMillis Fail over time in milliseconds. A worker which does not renew it's lease within this time interval
 	// will be regarded as having problems and it's shards will be assigned to other workers.
 	// For applications that have a large number of shards, this may be set to a higher number to reduce
 	// the number of DynamoDB IOPS required for tracking leases.
 	DefaultFailoverTimeMillis = 10000
 
-	// Period before the end of lease during which a lease is refreshed by the owner.
+	// DefaultLeaseRefreshPeriodMillis Period before the end of lease during which a lease is refreshed by the owner.
 	DefaultLeaseRefreshPeriodMillis = 5000
 
-	// Max records to fetch from Kinesis in a single GetRecords call.
+	// DefaultMaxRecords Max records to fetch from Kinesis in a single GetRecords call.
 	DefaultMaxRecords = 10000
 
-	// The default value for how long the {@link ShardConsumer} should sleep if no records are returned
-	// from the call to
-	DefaultIdletimeBetweenReadsMillis = 1000
+	// DefaultIdleTimeBetweenReadsMillis The default value for how long the {@link ShardConsumer}
+	// should sleep if no records are returned from the call to
+	DefaultIdleTimeBetweenReadsMillis = 1000
 
-	// Don't call processRecords() on the record processor for empty record lists.
+	// DefaultDontCallProcessRecordsForEmptyRecordList Don't call processRecords() on the record processor for empty record lists.
 	DefaultDontCallProcessRecordsForEmptyRecordList = false
 
-	// Interval in milliseconds between polling to check for parent shard completion.
+	// DefaultParentShardPollIntervalMillis Interval in milliseconds between polling to check for parent shard completion.
 	// Polling frequently will take up more DynamoDB IOPS (when there are leases for shards waiting on
 	// completion of parent shards).
 	DefaultParentShardPollIntervalMillis = 10000
 
-	// Shard sync interval in milliseconds - e.g. wait for this long between shard sync tasks.
+	// DefaultShardSyncIntervalMillis Shard sync interval in milliseconds - e.g. wait for this long between shard sync tasks.
 	DefaultShardSyncIntervalMillis = 60000
 
-	// Cleanup leases upon shards completion (don't wait until they expire in Kinesis).
+	// DefaultCleanupLeasesUponShardsCompletion Cleanup leases upon shards completion (don't wait until they expire in Kinesis).
 	// Keeping leases takes some tracking/resources (e.g. they need to be renewed, assigned), so by
 	// default we try to delete the ones we don't need any longer.
 	DefaultCleanupLeasesUponShardsCompletion = true
 
-	// Backoff time in milliseconds for Amazon Kinesis Client Library tasks (in the event of failures).
+	// DefaultTaskBackoffTimeMillis Backoff time in milliseconds for Amazon Kinesis Client Library tasks (in the event of failures).
 	DefaultTaskBackoffTimeMillis = 500
 
-	// KCL will validate client provided sequence numbers with a call to Amazon Kinesis before
+	// DefaultValidateSequenceNumberBeforeCheckpointing KCL will validate client provided sequence numbers with a call to Amazon Kinesis before
 	// checkpointing for calls to {@link RecordProcessorCheckpointer#checkpoint(String)} by default.
 	DefaultValidateSequenceNumberBeforeCheckpointing = true
 
-	// The max number of leases (shards) this worker should process.
+	// DefaultMaxLeasesForWorker The max number of leases (shards) this worker should process.
 	// This can be useful to avoid overloading (and thrashing) a worker when a host has resource constraints
 	// or during deployment.
 	// NOTE: Setting this to a low value can cause data loss if workers are not able to pick up all shards in the
 	// stream due to the max limit.
 	DefaultMaxLeasesForWorker = math.MaxInt16
 
-	// Max leases to steal from another worker at one time (for load balancing).
+	// DefaultMaxLeasesToStealAtOneTime Max leases to steal from another worker at one time (for load balancing).
 	// Setting this to a higher number can allow for faster load convergence (e.g. during deployments, cold starts),
 	// but can cause higher churn in the system.
 	DefaultMaxLeasesToStealAtOneTime = 1
 
-	// The Amazon DynamoDB table used for tracking leases will be provisioned with this read capacity.
+	// DefaultInitialLeaseTableReadCapacity The Amazon DynamoDB table used for tracking leases will be provisioned with this read capacity.
 	DefaultInitialLeaseTableReadCapacity = 10
 
-	// The Amazon DynamoDB table used for tracking leases will be provisioned with this write capacity.
+	// DefaultInitialLeaseTableWriteCapacity The Amazon DynamoDB table used for tracking leases will be provisioned with this write capacity.
 	DefaultInitialLeaseTableWriteCapacity = 10
 
-	// The Worker will skip shard sync during initialization if there are one or more leases in the lease table. This
+	// DefaultSkipShardSyncAtStartupIfLeasesExist The Worker will skip shard sync during initialization if there are one or more leases in the lease table. This
 	// assumes that the shards and leases are in-sync. This enables customers to choose faster startup times (e.g.
 	// during incremental deployments of an application).
 	DefaultSkipShardSyncAtStartupIfLeasesExist = false
 
-	// The amount of milliseconds to wait before graceful shutdown forcefully terminates.
+	// DefaultShutdownGraceMillis The amount of milliseconds to wait before graceful shutdown forcefully terminates.
 	DefaultShutdownGraceMillis = 5000
 
-	// Lease stealing defaults to false for backwards compatibility.
+	// DefaultEnableLeaseStealing Lease stealing defaults to false for backwards compatibility.
 	DefaultEnableLeaseStealing = false
 
-	// Interval between rebalance tasks defaults to 5 seconds.
+	// DefaultLeaseStealingIntervalMillis Interval between rebalance tasks defaults to 5 seconds.
 	DefaultLeaseStealingIntervalMillis = 5000
 
-	// Number of milliseconds to wait before another worker can aquire a claimed shard
+	// DefaultLeaseStealingClaimTimeoutMillis Number of milliseconds to wait before another worker can aquire a claimed shard
 	DefaultLeaseStealingClaimTimeoutMillis = 120000
 
-	// Number of milliseconds to wait before syncing with lease table (dynamodDB)
+	// DefaultLeaseSyncingIntervalMillis Number of milliseconds to wait before syncing with lease table (dynamodDB)
 	DefaultLeaseSyncingIntervalMillis = 60000
 )
 
@@ -141,7 +143,7 @@ type (
 	// This is used during initial application bootstrap (when a checkpoint doesn't exist for a shard or its parents)
 	InitialPositionInStream int
 
-	// Class that houses the entities needed to specify the Position in the stream from where a new application should
+	// InitialPositionInStreamExtended Class that houses the entities needed to specify the Position in the stream from where a new application should
 	// start.
 	InitialPositionInStreamExtended struct {
 		Position InitialPositionInStream
@@ -156,7 +158,7 @@ type (
 		Timestamp *time.Time `type:"Timestamp" timestampFormat:"unix"`
 	}
 
-	// Configuration for the Kinesis Client Library.
+	// KinesisClientLibConfiguration Configuration for the Kinesis Client Library.
 	// Note: There is no need to configure credential provider. Credential can be get from InstanceProfile.
 	KinesisClientLibConfiguration struct {
 		// ApplicationName is name of application. Kinesis allows multiple applications to consume the same stream.

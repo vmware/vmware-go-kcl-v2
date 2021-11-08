@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package cloudwatch
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
 // Copyright 2018 Patrick robinson
@@ -125,7 +127,7 @@ func (cw *MonitoringService) Shutdown() {
 	cw.logger.Infof("Cloudwatch metrics system has been shutdown.")
 }
 
-// Start daemon to flush metrics periodically
+// eventloop start daemon to flush metrics periodically
 func (cw *MonitoringService) eventloop() {
 	defer cw.waitGroup.Done()
 

@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package interfaces
 // The implementation is derived from https://github.com/awslabs/amazon-kinesis-client
 /*
  * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -38,7 +40,8 @@ type (
 	// The main task of using KCL is to provide implementation on IRecordProcessor interface.
 	// Note: This is exactly the same interface as Amazon KCL IRecordProcessor v2
 	IRecordProcessor interface {
-		/**
+		// Initialize
+		/*
 		 * Invoked by the Amazon Kinesis Client Library before data records are delivered to the RecordProcessor instance
 		 * (via processRecords).
 		 *
@@ -46,7 +49,8 @@ type (
 		 */
 		Initialize(initializationInput *InitializationInput)
 
-		/**
+		// ProcessRecords
+		/*
 		 * Process data records. The Amazon Kinesis Client Library will invoke this method to deliver data records to the
 		 * application.
 		 * Upon fail over, the new instance will get records with sequence number > checkpoint position
@@ -57,7 +61,8 @@ type (
 		 */
 		ProcessRecords(processRecordsInput *ProcessRecordsInput)
 
-		/**
+		// Shutdown
+		/*
 		 * Invoked by the Amazon Kinesis Client Library to indicate it will no longer send data records to this
 		 * RecordProcessor instance.
 		 *
@@ -77,7 +82,8 @@ type (
 	// for processing shard. Client can choose either creating one processor per shard or sharing them.
 	IRecordProcessorFactory interface {
 
-		/**
+		// CreateProcessor
+		/*
 		 * Returns a record processor to be used for processing data records for a (assigned) shard.
 		 *
 		 * @return Returns a processor object.

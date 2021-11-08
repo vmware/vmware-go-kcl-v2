@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package checkpoint
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
 // Copyright 2018 Patrick robinson
@@ -42,11 +44,11 @@ const (
 	ParentShardIdKey  = "ParentShardId"
 	ClaimRequestKey   = "ClaimRequest"
 
-	// We've completely processed all records in this shard.
+	// ShardEnd We've completely processed all records in this shard.
 	ShardEnd = "SHARD_END"
 
 	// ErrShardClaimed is returned when shard is claimed
-	ErrShardClaimed = "Shard is already claimed by another node"
+	ErrShardClaimed = "shard is already claimed by another node"
 )
 
 type ErrLeaseNotAcquired struct {
@@ -77,8 +79,7 @@ type Checkpointer interface {
 	// RemoveLeaseOwner to remove lease owner for the shard entry to make the shard available for reassignment
 	RemoveLeaseOwner(string) error
 
-	// New Lease Stealing Methods
-	// ListActiveWorkers returns active workers and their shards
+	// ListActiveWorkers returns active workers and their shards (New Lease Stealing Methods)
 	ListActiveWorkers(map[string]*par.ShardStatus) (map[string][]*par.ShardStatus, error)
 
 	// ClaimShard claims a shard for stealing

@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package interfaces
 // The implementation is derived from https://github.com/awslabs/amazon-kinesis-client
 /*
  * Copyright 2014-2015 Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -57,7 +59,7 @@ const (
 	 */
 	TERMINATE
 
-	/**
+	/*
 	 * Processing will be moved to a different record processor (fail over, load balancing use cases).
 	 * Applications SHOULD NOT checkpoint their progress (as another record processor may have already started
 	 * processing data).
@@ -67,12 +69,12 @@ const (
 
 // Containers for the parameters to the IRecordProcessor
 type (
-	/**
+	/*
 	 * Reason the RecordProcessor is being shutdown.
 	 * Used to distinguish between a fail-over vs. a termination (shard is closed and all records have been delivered).
-	 * In case of a fail over, applications should NOT checkpoint as part of shutdown,
+	 * In case of a fail-over, applications should NOT checkpoint as part of shutdown,
 	 * since another record processor may have already started processing records for that shard.
-	 * In case of termination (resharding use case), applications SHOULD checkpoint their progress to indicate
+	 * In case of termination (resharding use case), applications SHOULD keep checkpointing their progress to indicate
 	 * that they have successfully processed all the records (processing of child shards can then begin).
 	 */
 	ShutdownReason int
