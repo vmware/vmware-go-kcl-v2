@@ -32,29 +32,29 @@ package metrics
 type MonitoringService interface {
 	Init(appName, streamName, workerID string) error
 	Start() error
-	IncrRecordsProcessed(string, int)
-	IncrBytesProcessed(string, int64)
-	MillisBehindLatest(string, float64)
-	LeaseGained(string)
-	LeaseLost(string)
-	LeaseRenewed(string)
-	RecordGetRecordsTime(string, float64)
-	RecordProcessRecordsTime(string, float64)
+	IncrRecordsProcessed(shard string, count int)
+	IncrBytesProcessed(shard string, count int64)
+	MillisBehindLatest(shard string, milliSeconds float64)
+	LeaseGained(shard string)
+	LeaseLost(shard string)
+	LeaseRenewed(shard string)
+	RecordGetRecordsTime(shard string, time float64)
+	RecordProcessRecordsTime(shard string, time float64)
 	Shutdown()
 }
 
 // NoopMonitoringService implements MonitoringService by does nothing.
 type NoopMonitoringService struct{}
 
-func (NoopMonitoringService) Init(appName, streamName, workerID string) error { return nil }
-func (NoopMonitoringService) Start() error                                    { return nil }
-func (NoopMonitoringService) Shutdown()                                       {}
+func (NoopMonitoringService) Init(_, _, _ string) error { return nil }
+func (NoopMonitoringService) Start() error              { return nil }
+func (NoopMonitoringService) Shutdown()                 {}
 
-func (NoopMonitoringService) IncrRecordsProcessed(shard string, count int)         {}
-func (NoopMonitoringService) IncrBytesProcessed(shard string, count int64)         {}
-func (NoopMonitoringService) MillisBehindLatest(shard string, millSeconds float64) {}
-func (NoopMonitoringService) LeaseGained(shard string)                             {}
-func (NoopMonitoringService) LeaseLost(shard string)                               {}
-func (NoopMonitoringService) LeaseRenewed(shard string)                            {}
-func (NoopMonitoringService) RecordGetRecordsTime(shard string, time float64)      {}
-func (NoopMonitoringService) RecordProcessRecordsTime(shard string, time float64)  {}
+func (NoopMonitoringService) IncrRecordsProcessed(_ string, _ int)         {}
+func (NoopMonitoringService) IncrBytesProcessed(_ string, _ int64)         {}
+func (NoopMonitoringService) MillisBehindLatest(_ string, _ float64)       {}
+func (NoopMonitoringService) LeaseGained(_ string)                         {}
+func (NoopMonitoringService) LeaseLost(_ string)                           {}
+func (NoopMonitoringService) LeaseRenewed(_ string)                        {}
+func (NoopMonitoringService) RecordGetRecordsTime(_ string, _ float64)     {}
+func (NoopMonitoringService) RecordProcessRecordsTime(_ string, _ float64) {}
