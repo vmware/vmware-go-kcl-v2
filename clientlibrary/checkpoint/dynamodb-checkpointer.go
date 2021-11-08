@@ -140,9 +140,6 @@ func (checkpointer *DynamoCheckpoint) GetLease(shard *par.ShardStatus, newAssign
 
 	var claimRequest string
 	if checkpointer.kclConfig.EnableLeaseStealing {
-		if currentCheckpointClaimRequest, ok := currentCheckpoint[ClaimRequestKey]; ok {
-			fmt.Printf("aaaaaa %v", currentCheckpointClaimRequest)
-		}
 		if currentCheckpointClaimRequest, ok := currentCheckpoint[ClaimRequestKey]; ok &&
 			currentCheckpointClaimRequest.(*types.AttributeValueMemberS).Value != "" {
 			claimRequest = currentCheckpointClaimRequest.(*types.AttributeValueMemberS).Value
