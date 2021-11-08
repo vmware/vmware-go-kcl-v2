@@ -20,8 +20,8 @@ func TestLeaseStealing(t *testing.T) {
 	}
 	test := NewLeaseStealingTest(t, config, newLeaseStealingWorkerFactory(t))
 	test.Run(LeaseStealingAssertions{
-		expectedLeasesForIntialWorker: config.numShards,
-		expectedLeasesPerWorker:       config.numShards / config.numWorkers,
+		expectedLeasesForInitialWorker: config.numShards,
+		expectedLeasesPerWorker:        config.numShards / config.numWorkers,
 	})
 }
 
@@ -55,7 +55,7 @@ func (wf *leaseStealingWorkerFactory) CreateKCLConfig(workerID string, config *T
 		WithLogger(log)
 }
 
-func (wf *leaseStealingWorkerFactory) CreateWorker(workerID string, kclConfig *cfg.KinesisClientLibConfiguration) *wk.Worker {
+func (wf *leaseStealingWorkerFactory) CreateWorker(_ string, kclConfig *cfg.KinesisClientLibConfiguration) *wk.Worker {
 	worker := wk.NewWorker(recordProcessorFactory(wf.t), kclConfig)
 	return worker
 }
@@ -71,8 +71,8 @@ func TestLeaseStealingInjectCheckpointer(t *testing.T) {
 	}
 	test := NewLeaseStealingTest(t, config, newleaseStealingWorkerFactoryCustomChk(t))
 	test.Run(LeaseStealingAssertions{
-		expectedLeasesForIntialWorker: config.numShards,
-		expectedLeasesPerWorker:       config.numShards / config.numWorkers,
+		expectedLeasesForInitialWorker: config.numShards,
+		expectedLeasesPerWorker:        config.numShards / config.numWorkers,
 	})
 }
 
@@ -101,10 +101,10 @@ func TestLeaseStealingWithMaxLeasesForWorker(t *testing.T) {
 		regionName:       regionName,
 		workerIDTemplate: workerID + "-%v",
 	}
-	test := NewLeaseStealingTest(t, config, newleaseStealingWorkerFactoryMaxLeases(t, config.numShards-1))
+	test := NewLeaseStealingTest(t, config, newLeaseStealingWorkerFactoryMaxLeases(t, config.numShards-1))
 	test.Run(LeaseStealingAssertions{
-		expectedLeasesForIntialWorker: config.numShards - 1,
-		expectedLeasesPerWorker:       2,
+		expectedLeasesForInitialWorker: config.numShards - 1,
+		expectedLeasesPerWorker:        2,
 	})
 }
 
@@ -113,7 +113,7 @@ type leaseStealingWorkerFactoryMaxLeases struct {
 	*leaseStealingWorkerFactory
 }
 
-func newleaseStealingWorkerFactoryMaxLeases(t *testing.T, maxLeases int) *leaseStealingWorkerFactoryMaxLeases {
+func newLeaseStealingWorkerFactoryMaxLeases(t *testing.T, maxLeases int) *leaseStealingWorkerFactoryMaxLeases {
 	return &leaseStealingWorkerFactoryMaxLeases{
 		maxLeases,
 		newLeaseStealingWorkerFactory(t),

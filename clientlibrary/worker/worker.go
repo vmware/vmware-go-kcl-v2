@@ -30,16 +30,18 @@
 package worker
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
@@ -59,7 +61,7 @@ type Worker struct {
 
 	processorFactory kcl.IRecordProcessorFactory
 	kclConfig        *config.KinesisClientLibConfiguration
-	kc               kinesisiface.KinesisAPI
+	kc               *kinesis.Client
 	checkpointer     chk.Checkpointer
 	mService         metrics.MonitoringService
 
@@ -94,7 +96,7 @@ func NewWorker(factory kcl.IRecordProcessorFactory, kclConfig *config.KinesisCli
 }
 
 // WithKinesis is used to provide Kinesis service for either custom implementation or unit testing.
-func (w *Worker) WithKinesis(svc kinesisiface.KinesisAPI) *Worker {
+func (w *Worker) WithKinesis(svc *kinesis.Client) *Worker {
 	w.kc = svc
 	return w
 }
@@ -153,22 +155,38 @@ func (w *Worker) initialize() error {
 	log := w.kclConfig.Logger
 	log.Infof("Worker initialization in progress...")
 
-	// Create default Kinesis session
+	// Create default Kinesis client
 	if w.kc == nil {
 		// create session for Kinesis
-		log.Infof("Creating Kinesis session")
+		log.Infof("Creating Kinesis client")
 
-		s, err := session.NewSession(&aws.Config{
-			Region:      aws.String(w.regionName),
-			Endpoint:    &w.kclConfig.KinesisEndpoint,
-			Credentials: w.kclConfig.KinesisCredentials,
+		resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+			return aws.Endpoint{
+				PartitionID:   "aws",
+				URL:           w.kclConfig.KinesisEndpoint,
+				SigningRegion: w.regionName,
+			}, nil
 		})
+
+		cfg, err := awsConfig.LoadDefaultConfig(
+			context.TODO(),
+			awsConfig.WithRegion(w.regionName),
+			awsConfig.WithCredentialsProvider(
+				credentials.NewStaticCredentialsProvider(
+					w.kclConfig.KinesisCredentials.Value.AccessKeyID,
+					w.kclConfig.KinesisCredentials.Value.SecretAccessKey,
+					w.kclConfig.KinesisCredentials.Value.SessionToken)),
+			awsConfig.WithEndpointResolver(resolver),
+			awsConfig.WithRetryer(func() aws.Retryer {
+				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
+			}),
+		)
 
 		if err != nil {
 			// no need to move forward
-			log.Fatalf("Failed in getting Kinesis session for creating Worker: %+v", err)
+			log.Fatalf("Failed in loading Kinesis default config for creating Worker: %+v", err)
 		}
-		w.kc = kinesis.New(s)
+		w.kc = kinesis.NewFromConfig(cfg)
 	} else {
 		log.Infof("Use custom Kinesis service.")
 	}
@@ -460,7 +478,7 @@ func (w *Worker) getShardIDs(nextToken string, shardInfo map[string]bool) error 
 		args.StreamName = aws.String(w.streamName)
 	}
 
-	listShards, err := w.kc.ListShards(args)
+	listShards, err := w.kc.ListShards(context.TODO(), args)
 	if err != nil {
 		log.Errorf("Error in ListShards: %s Error: %+v Request: %s", w.streamName, err, args)
 		return err
@@ -475,16 +493,16 @@ func (w *Worker) getShardIDs(nextToken string, shardInfo map[string]bool) error 
 			log.Infof("Found new shard with id %s", *s.ShardId)
 			w.shardStatus[*s.ShardId] = &par.ShardStatus{
 				ID:                     *s.ShardId,
-				ParentShardId:          aws.StringValue(s.ParentShardId),
+				ParentShardId:          aws.ToString(s.ParentShardId),
 				Mux:                    &sync.RWMutex{},
-				StartingSequenceNumber: aws.StringValue(s.SequenceNumberRange.StartingSequenceNumber),
-				EndingSequenceNumber:   aws.StringValue(s.SequenceNumberRange.EndingSequenceNumber),
+				StartingSequenceNumber: aws.ToString(s.SequenceNumberRange.StartingSequenceNumber),
+				EndingSequenceNumber:   aws.ToString(s.SequenceNumberRange.EndingSequenceNumber),
 			}
 		}
 	}
 
 	if listShards.NextToken != nil {
-		err := w.getShardIDs(aws.StringValue(listShards.NextToken), shardInfo)
+		err := w.getShardIDs(aws.ToString(listShards.NextToken), shardInfo)
 		if err != nil {
 			log.Errorf("Error in ListShards: %s Error: %+v Request: %s", w.streamName, err, args)
 			return err

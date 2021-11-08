@@ -21,6 +21,8 @@
 package worker
 
 import (
+	"github.com/aws/aws-sdk-go-v2/aws"
+
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
 	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
@@ -71,13 +73,12 @@ func (rc *RecordProcessorCheckpointer) Checkpoint(sequenceNumber *string) error 
 	if sequenceNumber == nil {
 		rc.shard.SetCheckpoint(chk.ShardEnd)
 	} else {
-		rc.shard.SetCheckpoint(aws.StringValue(sequenceNumber))
+		rc.shard.SetCheckpoint(aws.ToString(sequenceNumber))
 	}
 
 	return rc.checkpoint.CheckpointSequence(rc.shard)
 }
 
-func (rc *RecordProcessorCheckpointer) PrepareCheckpoint(sequenceNumber *string) (kcl.IPreparedCheckpointer, error) {
+func (rc *RecordProcessorCheckpointer) PrepareCheckpoint(_ *string) (kcl.IPreparedCheckpointer, error) {
 	return &PreparedCheckpointer{}, nil
-
 }

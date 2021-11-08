@@ -23,7 +23,9 @@ package test
 import (
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/stretchr/testify/assert"
+
 	kc "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
 )
 
@@ -50,7 +52,7 @@ type dumpRecordProcessor struct {
 }
 
 func (dd *dumpRecordProcessor) Initialize(input *kc.InitializationInput) {
-	dd.t.Logf("Processing SharId: %v at checkpoint: %v", input.ShardId, aws.StringValue(input.ExtendedSequenceNumber.SequenceNumber))
+	dd.t.Logf("Processing SharId: %v at checkpoint: %v", input.ShardId, aws.ToString(input.ExtendedSequenceNumber.SequenceNumber))
 	shardID = input.ShardId
 	dd.count = 0
 }
@@ -76,18 +78,18 @@ func (dd *dumpRecordProcessor) ProcessRecords(input *kc.ProcessRecordsInput) {
 	// Calculate the time taken from polling records and delivering to record processor for a batch.
 	diff := input.CacheExitTime.Sub(*input.CacheEntryTime)
 	dd.t.Logf("Checkpoint progress at: %v,  MillisBehindLatest = %v, KCLProcessTime = %v", lastRecordSequenceNumber, input.MillisBehindLatest, diff)
-	input.Checkpointer.Checkpoint(lastRecordSequenceNumber)
+	_ = input.Checkpointer.Checkpoint(lastRecordSequenceNumber)
 }
 
 func (dd *dumpRecordProcessor) Shutdown(input *kc.ShutdownInput) {
-	dd.t.Logf("Shutdown Reason: %v", aws.StringValue(kc.ShutdownReasonMessage(input.ShutdownReason)))
+	dd.t.Logf("Shutdown Reason: %v", aws.ToString(kc.ShutdownReasonMessage(input.ShutdownReason)))
 	dd.t.Logf("Processed Record Count = %d", dd.count)
 
 	// When the value of {@link ShutdownInput#getShutdownReason()} is
 	// {@link com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason#TERMINATE} it is required that you
 	// checkpoint. Failure to do so will result in an IllegalArgumentException, and the KCL no longer making progress.
 	if input.ShutdownReason == kc.TERMINATE {
-		input.Checkpointer.Checkpoint(nil)
+		_ = input.Checkpointer.Checkpoint(nil)
 	}
 
 	assert.True(dd.t, dd.count > 0)

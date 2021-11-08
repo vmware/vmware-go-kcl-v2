@@ -1,16 +1,18 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/stretchr/testify/assert"
+
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	cfg "github.com/vmware/vmware-go-kcl/clientlibrary/config"
 	wk "github.com/vmware/vmware-go-kcl/clientlibrary/worker"
@@ -18,10 +20,10 @@ import (
 
 type LeaseStealingTest struct {
 	t       *testing.T
-	config  *TestClusterConfig
+	config   *TestClusterConfig
 	cluster *TestCluster
-	kc      kinesisiface.KinesisAPI
-	dc      dynamodbiface.DynamoDBAPI
+	kc      *kinesis.Client
+	dc      *dynamodb.Client
 
 	backOffSeconds int
 	maxRetries     int
@@ -83,21 +85,19 @@ func (lst *LeaseStealingTest) getShardCountByWorker() map[string]int {
 	}
 
 	shardsByWorker := map[string]map[string]bool{}
-	err := lst.dc.ScanPages(input, func(out *dynamodb.ScanOutput, lastPage bool) bool {
-		for _, result := range out.Items {
-			if shardID, ok := result[chk.LeaseKeyKey]; !ok {
-				continue
-			} else if assignedTo, ok := result[chk.LeaseOwnerKey]; !ok {
-				continue
-			} else {
-				if _, ok := shardsByWorker[*assignedTo.S]; !ok {
-					shardsByWorker[*assignedTo.S] = map[string]bool{}
-				}
-				shardsByWorker[*assignedTo.S][*shardID.S] = true
+	scan, err := lst.dc.Scan(context.TODO(), input)
+	for _, result := range scan.Items {
+		if shardID, ok := result[chk.LeaseKeyKey]; !ok {
+			continue
+		} else if assignedTo, ok := result[chk.LeaseOwnerKey]; !ok {
+			continue
+		} else {
+			if _, ok := shardsByWorker[assignedTo.(*types.AttributeValueMemberS).Value]; !ok {
+				shardsByWorker[assignedTo.(*types.AttributeValueMemberS).Value] = map[string]bool{}
 			}
+			shardsByWorker[assignedTo.(*types.AttributeValueMemberS).Value][shardID.(*types.AttributeValueMemberS).Value] = true
 		}
-		return !lastPage
-	})
+	}
 	assert.Nil(lst.t, err)
 
 	shardCountByWorker := map[string]int{}
@@ -108,12 +108,12 @@ func (lst *LeaseStealingTest) getShardCountByWorker() map[string]int {
 }
 
 type LeaseStealingAssertions struct {
-	expectedLeasesForIntialWorker int
-	expectedLeasesPerWorker       int
+	expectedLeasesForInitialWorker int
+	expectedLeasesPerWorker        int
 }
 
 func (lst *LeaseStealingTest) Run(assertions LeaseStealingAssertions) {
-	// Publish records onto stream thoughtout the entire duration of the test
+	// Publish records onto stream throughout the entire duration of the test
 	stop := lst.publishSomeData()
 	defer stop()
 
@@ -126,16 +126,16 @@ func (lst *LeaseStealingTest) Run(assertions LeaseStealingAssertions) {
 		time.Sleep(time.Duration(lst.backOffSeconds) * time.Second)
 
 		shardCountByWorker := lst.getShardCountByWorker()
-		if shardCount, ok := shardCountByWorker[worker1]; ok && shardCount == assertions.expectedLeasesForIntialWorker {
+		if shardCount, ok := shardCountByWorker[worker1]; ok && shardCount == assertions.expectedLeasesForInitialWorker {
 			worker1ShardCount = shardCount
 			break
 		}
 	}
 
 	// Assert correct number of leases
-	assert.Equal(lst.t, assertions.expectedLeasesForIntialWorker, worker1ShardCount)
+	assert.Equal(lst.t, assertions.expectedLeasesForInitialWorker, worker1ShardCount)
 
-	// Spawn Remaining Wokers
+	// Spawn Remaining Workers
 	for i := 0; i < lst.config.numWorkers-1; i++ {
 		lst.cluster.SpawnWorker()
 	}

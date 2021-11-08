@@ -19,61 +19,99 @@
 package test
 
 import (
+	"context"
 	"crypto/md5"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	rec "github.com/awslabs/kinesis-aggregation/go/records"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/retry"
+	awsConfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/golang/protobuf/proto"
-	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
 
-	"testing"
+	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
+	rec "github.com/vmware/vmware-go-kcl/internal/records"
 )
 
 const specstr = `{"name":"kube-qQyhk","networking":{"containerNetworkCidr":"10.2.0.0/16"},"orgName":"BVT-Org-cLQch","projectName":"project-tDSJd","serviceLevel":"DEVELOPER","size":{"count":1},"version":"1.8.1-4"}`
 
 // NewKinesisClient to create a Kinesis Client.
-func NewKinesisClient(t *testing.T, regionName, endpoint string, credentials *credentials.Credentials) *kinesis.Kinesis {
-	s, err := session.NewSession(&aws.Config{
-		Region:      aws.String(regionName),
-		Endpoint:    aws.String(endpoint),
-		Credentials: credentials,
+func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credentials.StaticCredentialsProvider) *kinesis.Client {
+	// create session for Kinesis
+	t.Logf("Creating Kinesis client")
+
+	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		return aws.Endpoint {
+			PartitionID:   "aws",
+			URL:           endpoint,
+			SigningRegion: regionName,
+		}, nil
 	})
+
+	cfg, err := awsConfig.LoadDefaultConfig(
+		context.TODO(),
+		awsConfig.WithRegion(regionName),
+		awsConfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				creds.Value.AccessKeyID,
+				creds.Value.SecretAccessKey,
+				creds.Value.SessionToken)),
+		awsConfig.WithEndpointResolver(resolver),
+		awsConfig.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
+		}),
+	)
 
 	if err != nil {
 		// no need to move forward
-		t.Fatalf("Failed in getting Kinesis session for creating Worker: %+v", err)
+		t.Fatalf("Failed in loading Kinesis default config for creating Worker: %+v", err)
 	}
-	return kinesis.New(s)
+
+	return  kinesis.NewFromConfig(cfg)
 }
 
 // NewDynamoDBClient to create a Kinesis Client.
-func NewDynamoDBClient(t *testing.T, regionName, endpoint string, credentials *credentials.Credentials) *dynamodb.DynamoDB {
-	s, err := session.NewSession(&aws.Config{
-		Region:      aws.String(regionName),
-		Endpoint:    aws.String(endpoint),
-		Credentials: credentials,
+func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds *credentials.StaticCredentialsProvider) *dynamodb.Client {
+	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		return aws.Endpoint {
+			PartitionID:   "aws",
+			URL:           endpoint,
+			SigningRegion: regionName,
+		}, nil
 	})
 
+	cfg, err := awsConfig.LoadDefaultConfig(
+		context.TODO(),
+		awsConfig.WithRegion(regionName),
+		awsConfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(
+				creds.Value.AccessKeyID,
+				creds.Value.SecretAccessKey,
+				creds.Value.SessionToken)),
+		awsConfig.WithEndpointResolver(resolver),
+		awsConfig.WithRetryer(func() aws.Retryer {
+			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
+		}),
+	)
+
 	if err != nil {
-		// no need to move forward
-		t.Fatalf("Failed in getting DynamoDB session for creating Worker: %+v", err)
+		t.Fatalf("unable to load SDK config, %v", err)
 	}
-	return dynamodb.New(s)
+
+	return dynamodb.NewFromConfig(cfg)
 }
 
-func continuouslyPublishSomeData(t *testing.T, kc kinesisiface.KinesisAPI) func() {
-	shards := []*kinesis.Shard{}
+func continuouslyPublishSomeData(t *testing.T, kc *kinesis.Client) func() {
+	var shards []types.Shard
 	var nextToken *string
 	for {
-		out, err := kc.ListShards(&kinesis.ListShardsInput{
+		out, err := kc.ListShards(context.TODO(), &kinesis.ListShardsInput {
 			StreamName: aws.String(streamName),
 			NextToken:  nextToken,
 		})
@@ -112,7 +150,7 @@ func continuouslyPublishSomeData(t *testing.T, kc kinesisiface.KinesisAPI) func(
 	}
 }
 
-func publishToAllShards(t *testing.T, kc kinesisiface.KinesisAPI, shards []*kinesis.Shard) {
+func publishToAllShards(t *testing.T, kc *kinesis.Client, shards []types.Shard) {
 	// Put records to all shards
 	for i := 0; i < 10; i++ {
 		for _, shard := range shards {
@@ -122,7 +160,7 @@ func publishToAllShards(t *testing.T, kc kinesisiface.KinesisAPI, shards []*kine
 }
 
 // publishSomeData to put some records into Kinesis stream
-func publishSomeData(t *testing.T, kc kinesisiface.KinesisAPI) {
+func publishSomeData(t *testing.T, kc *kinesis.Client) {
 	// Put some data into stream.
 	t.Log("Putting data into stream using PutRecord API...")
 	for i := 0; i < 50; i++ {
@@ -146,8 +184,8 @@ func publishSomeData(t *testing.T, kc kinesisiface.KinesisAPI) {
 }
 
 // publishRecord to put a record into Kinesis stream using PutRecord API.
-func publishRecord(t *testing.T, kc kinesisiface.KinesisAPI, hashKey *string) {
-	input := &kinesis.PutRecordInput{
+func publishRecord(t *testing.T, kc *kinesis.Client, hashKey *string) {
+	input := &kinesis.PutRecordInput {
 		Data:         []byte(specstr),
 		StreamName:   aws.String(streamName),
 		PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),
@@ -156,7 +194,7 @@ func publishRecord(t *testing.T, kc kinesisiface.KinesisAPI, hashKey *string) {
 		input.ExplicitHashKey = hashKey
 	}
 	// Use random string as partition key to ensure even distribution across shards
-	_, err := kc.PutRecord(input)
+	_, err := kc.PutRecord(context.TODO(), input)
 
 	if err != nil {
 		t.Errorf("Error in PutRecord. %+v", err)
@@ -164,19 +202,19 @@ func publishRecord(t *testing.T, kc kinesisiface.KinesisAPI, hashKey *string) {
 }
 
 // publishRecord to put a record into Kinesis stream using PutRecords API.
-func publishRecords(t *testing.T, kc kinesisiface.KinesisAPI) {
+func publishRecords(t *testing.T, kc *kinesis.Client) {
 	// Use random string as partition key to ensure even distribution across shards
-	records := make([]*kinesis.PutRecordsRequestEntry, 5)
+	records := make([]types.PutRecordsRequestEntry, 5)
 
 	for i := 0; i < 5; i++ {
-		record := &kinesis.PutRecordsRequestEntry{
+		record := types.PutRecordsRequestEntry {
 			Data:         []byte(specstr),
 			PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),
 		}
 		records[i] = record
 	}
 
-	_, err := kc.PutRecords(&kinesis.PutRecordsInput{
+	_, err := kc.PutRecords(context.TODO(), &kinesis.PutRecordsInput{
 		Records:    records,
 		StreamName: aws.String(streamName),
 	})
@@ -187,10 +225,10 @@ func publishRecords(t *testing.T, kc kinesisiface.KinesisAPI) {
 }
 
 // publishRecord to put a record into Kinesis stream using PutRecord API.
-func publishAggregateRecord(t *testing.T, kc kinesisiface.KinesisAPI) {
+func publishAggregateRecord(t *testing.T, kc *kinesis.Client) {
 	data := generateAggregateRecord(5, specstr)
 	// Use random string as partition key to ensure even distribution across shards
-	_, err := kc.PutRecord(&kinesis.PutRecordInput{
+	_, err := kc.PutRecord(context.TODO(), &kinesis.PutRecordInput {
 		Data:         data,
 		StreamName:   aws.String(streamName),
 		PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),

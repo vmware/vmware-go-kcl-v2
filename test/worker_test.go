@@ -26,9 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
 
@@ -47,6 +45,8 @@ const (
 	regionName   = "us-west-2"
 	workerID     = "test-worker"
 	consumerName = "enhanced-fan-out-consumer"
+	kinesisEndpoint = "https://kinesis.eu-west-1.amazonaws.com"
+	dynamoEndpoint = "https://dynamodb.eu-west-1.amazonaws.com"
 )
 
 const metricsSystem = "cloudwatch"
@@ -76,7 +76,8 @@ func TestWorker(t *testing.T) {
 		WithMaxLeasesForWorker(1).
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000).
-		WithLogger(log)
+		WithLogger(log).
+		WithKinesisEndpoint(kinesisEndpoint)
 
 	runTest(kclConfig, false, t)
 }
@@ -98,7 +99,8 @@ func TestWorkerWithTimestamp(t *testing.T) {
 		WithMaxLeasesForWorker(1).
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000).
-		WithLogger(log)
+		WithLogger(log).
+		WithKinesisEndpoint(kinesisEndpoint)
 
 	runTest(kclConfig, false, t)
 }
@@ -128,24 +130,28 @@ func TestWorkerWithSigInt(t *testing.T) {
 		WithMaxLeasesForWorker(1).
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000).
-		WithLogger(log)
+		WithLogger(log).
+		WithKinesisEndpoint(kinesisEndpoint)
 
 	runTest(kclConfig, true, t)
 }
 
 func TestWorkerStatic(t *testing.T) {
-	t.Skip("Need to provide actual credentials")
+	//t.Skip("Need to provide actual credentials")
 
 	// Fill in the credentials for accessing Kinesis and DynamoDB.
 	// Note: use empty string as SessionToken for long-term credentials.
-	creds := credentials.NewStaticCredentials("AccessKeyId", "SecretAccessKey", "SessionToken")
+	kinesisCreds := credentials.NewStaticCredentialsProvider("", "", "")
+	dynamoCreds := credentials.NewStaticCredentialsProvider("", "", "")
 
-	kclConfig := cfg.NewKinesisClientLibConfigWithCredential(appName, streamName, regionName, workerID, creds).
+	kclConfig := cfg.NewKinesisClientLibConfigWithCredentials(appName, streamName, regionName, workerID, &kinesisCreds, &dynamoCreds).
 		WithInitialPositionInStream(cfg.LATEST).
 		WithMaxRecords(10).
 		WithMaxLeasesForWorker(1).
 		WithShardSyncIntervalMillis(5000).
-		WithFailoverTimeMillis(300000)
+		WithFailoverTimeMillis(300000).
+		WithKinesisEndpoint(kinesisEndpoint).
+		WithDynamoDBEndpoint(dynamoEndpoint)
 
 	runTest(kclConfig, false, t)
 }
@@ -155,25 +161,29 @@ func TestWorkerAssumeRole(t *testing.T) {
 
 	// Initial credentials loaded from SDK's default credential chain. Such as
 	// the environment, shared credentials (~/.aws/credentials), or EC2 Instance
-	// Role. These credentials will be used to to make the STS Assume Role API.
-	sess := session.Must(session.NewSession())
+	// Role. These credentials will be used to make the STS Assume Role API.
+	//sess := session.Must(session.NewSession())
 
 	// Create the credentials from AssumeRoleProvider to assume the role
 	// referenced by the "myRoleARN" ARN.
-	creds := stscreds.NewCredentials(sess, "arn:aws:iam::*:role/kcl-test-publisher")
+	//kinesisCreds := stscreds.NewAssumeRoleProvider(sess, "arn:aws:iam::*:role/kcl-test-publisher")
+	kinesisCreds := credentials.NewStaticCredentialsProvider("", "", "")
+	dynamoCreds := credentials.NewStaticCredentialsProvider("", "", "")
 
-	kclConfig := cfg.NewKinesisClientLibConfigWithCredential(appName, streamName, regionName, workerID, creds).
+	kclConfig := cfg.NewKinesisClientLibConfigWithCredentials(appName, streamName, regionName, workerID, &kinesisCreds, &dynamoCreds).
 		WithInitialPositionInStream(cfg.LATEST).
 		WithMaxRecords(10).
 		WithMaxLeasesForWorker(1).
 		WithShardSyncIntervalMillis(5000).
-		WithFailoverTimeMillis(300000)
+		WithFailoverTimeMillis(300000).
+		WithKinesisEndpoint(kinesisEndpoint).
+		WithDynamoDBEndpoint(dynamoEndpoint)
 
 	runTest(kclConfig, false, t)
 }
 
 func TestEnhancedFanOutConsumer(t *testing.T) {
-	// At miminal, use standard logrus logger
+	// At minimal, use standard logrus logger
 	// log := logger.NewLogrusLogger(logrus.StandardLogger())
 	//
 	// In order to have precise control over logging. Use logger with config
@@ -202,7 +212,7 @@ func TestEnhancedFanOutConsumer(t *testing.T) {
 }
 
 func TestEnhancedFanOutConsumerDefaultConsumerName(t *testing.T) {
-	// At miminal, use standard logrus logger
+	// At minimal, use standard logrus logger
 	// log := logger.NewLogrusLogger(logrus.StandardLogger())
 	//
 	// In order to have precise control over logging. Use logger with config
@@ -234,7 +244,7 @@ func TestEnhancedFanOutConsumerARN(t *testing.T) {
 	t.Skip("Need to provide actual consumerARN")
 
 	consumerARN := "arn:aws:kinesis:*:stream/kcl-test/consumer/fanout-poc-consumer-test:*"
-	// At miminal, use standard logrus logger
+	// At minimal, use standard logrus logger
 	// log := logger.NewLogrusLogger(logrus.StandardLogger())
 	//
 	// In order to have precise control over logging. Use logger with config
@@ -294,13 +304,14 @@ func runTest(kclConfig *cfg.KinesisClientLibConfiguration, triggersig bool, t *t
 	if triggersig {
 		t.Log("Trigger signal SIGINT")
 		p, _ := os.FindProcess(os.Getpid())
-		p.Signal(os.Interrupt)
+		_ = p.Signal(os.Interrupt)
 	}
 
 	// wait a few seconds before shutdown processing
 	time.Sleep(30 * time.Second)
 
-	if metricsSystem == "prometheus" {
+	switch metricsSystem {
+	case "prometheus":
 		res, err := http.Get("http://localhost:8080/metrics")
 		if err != nil {
 			t.Fatalf("Error scraping Prometheus endpoint %s", err)
@@ -308,12 +319,12 @@ func runTest(kclConfig *cfg.KinesisClientLibConfiguration, triggersig bool, t *t
 
 		var parser expfmt.TextParser
 		parsed, err := parser.TextToMetricFamilies(res.Body)
-		res.Body.Close()
+		_ = res.Body.Close()
 		if err != nil {
 			t.Errorf("Error reading monitoring response %s", err)
 		}
-		t.Logf("Prometheus: %+v", parsed)
 
+		t.Logf("Prometheus: %+v", parsed)
 	}
 
 	t.Log("Calling normal shutdown at the end of application.")
@@ -327,7 +338,7 @@ func getMetricsConfig(kclConfig *cfg.KinesisClientLibConfiguration, service stri
 		return cloudwatch.NewMonitoringServiceWithOptions(kclConfig.RegionName,
 			kclConfig.KinesisCredentials,
 			kclConfig.Logger,
-			cloudwatch.DEFAULT_CLOUDWATCH_METRICS_BUFFER_DURATION)
+			cloudwatch.DefaultCloudwatchMetricsBufferDuration)
 	}
 
 	if service == "prometheus" {

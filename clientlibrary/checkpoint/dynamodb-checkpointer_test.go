@@ -28,15 +28,15 @@
 package checkpoint
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
 
 	cfg "github.com/vmware/vmware-go-kcl/clientlibrary/config"
@@ -44,24 +44,24 @@ import (
 )
 
 func TestDoesTableExist(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
+	svc := &mockDynamoDB{client: nil, tableExist: true, item: map[string]types.AttributeValue{}}
 	checkpoint := &DynamoCheckpoint{
 		TableName: "TableName",
-		svc:       svc,
+		svc:       svc.client,
 	}
 	if !checkpoint.doesTableExist() {
 		t.Error("Table exists but returned false")
 	}
 
 	svc = &mockDynamoDB{tableExist: false}
-	checkpoint.svc = svc
+	checkpoint.svc = svc.client
 	if checkpoint.doesTableExist() {
 		t.Error("Table does not exist but returned true")
 	}
 }
 
-func TestGetLeaseNotAquired(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
+func TestGetLeaseNotAcquired(t *testing.T) {
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
 		WithInitialPositionInStream(cfg.LATEST).
 		WithMaxRecords(10).
@@ -69,8 +69,8 @@ func TestGetLeaseNotAquired(t *testing.T) {
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:         "0001",
 		Checkpoint: "",
@@ -92,7 +92,7 @@ func TestGetLeaseNotAquired(t *testing.T) {
 }
 
 func TestGetLeaseAquired(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
 		WithInitialPositionInStream(cfg.LATEST).
 		WithMaxRecords(10).
@@ -100,27 +100,28 @@ func TestGetLeaseAquired(t *testing.T) {
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
-	marshalledCheckpoint := map[string]*dynamodb.AttributeValue{
-		LeaseKeyKey: {
-			S: aws.String("0001"),
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
+	marshalledCheckpoint := map[string]types.AttributeValue{
+		LeaseKeyKey: &types.AttributeValueMemberS{
+			Value: "0001",
 		},
-		LeaseOwnerKey: {
-			S: aws.String("abcd-efgh"),
+		LeaseOwnerKey: &types.AttributeValueMemberS{
+			Value: "abcd-efgh",
 		},
-		LeaseTimeoutKey: {
-			S: aws.String(time.Now().AddDate(0, -1, 0).UTC().Format(time.RFC3339)),
+		LeaseTimeoutKey: &types.AttributeValueMemberS{
+			Value: time.Now().AddDate(0, -1, 0).UTC().Format(time.RFC3339),
 		},
-		SequenceNumberKey: {
-			S: aws.String("deadbeef"),
+		SequenceNumberKey: &types.AttributeValueMemberS{
+			Value: "deadbeef",
 		},
 	}
 	input := &dynamodb.PutItemInput{
 		TableName: aws.String("TableName"),
 		Item:      marshalledCheckpoint,
 	}
-	checkpoint.svc.PutItem(input)
+	_, _ = checkpoint.svc.PutItem(context.TODO(), input)
+
 	shard := &par.ShardStatus{
 		ID:         "0001",
 		Checkpoint: "deadbeef",
@@ -135,8 +136,8 @@ func TestGetLeaseAquired(t *testing.T) {
 	id, ok := svc.item[SequenceNumberKey]
 	if !ok {
 		t.Error("Expected checkpoint to be set by GetLease")
-	} else if *id.S != "deadbeef" {
-		t.Errorf("Expected checkpoint to be deadbeef. Got '%s'", *id.S)
+	} else if id.(*types.AttributeValueMemberS).Value != "deadbeef" {
+		t.Errorf("Expected checkpoint to be deadbeef. Got '%s'", id.(*types.AttributeValueMemberS).Value)
 	}
 
 	// release owner info
@@ -147,7 +148,7 @@ func TestGetLeaseAquired(t *testing.T) {
 		ID:  shard.ID,
 		Mux: &sync.RWMutex{},
 	}
-	checkpoint.FetchCheckpoint(status)
+	_ = checkpoint.FetchCheckpoint(status)
 
 	// checkpointer and parent shard id should be the same
 	assert.Equal(t, shard.Checkpoint, status.Checkpoint)
@@ -161,9 +162,9 @@ func TestGetLeaseShardClaimed(t *testing.T) {
 	leaseTimeout := time.Now().Add(-100 * time.Second).UTC()
 	svc := &mockDynamoDB{
 		tableExist: true,
-		item: map[string]*dynamodb.AttributeValue{
-			ClaimRequestKey: {S: aws.String("ijkl-mnop")},
-			LeaseTimeoutKey: {S: aws.String(leaseTimeout.Format(time.RFC3339))},
+		item: map[string]types.AttributeValue{
+			ClaimRequestKey: &types.AttributeValueMemberS{Value: "ijkl-mnop"},
+			LeaseTimeoutKey: &types.AttributeValueMemberS{Value: leaseTimeout.Format(time.RFC3339)},
 		},
 	}
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
@@ -174,8 +175,8 @@ func TestGetLeaseShardClaimed(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
 		Checkpoint:   "",
@@ -214,15 +215,15 @@ func TestGetLeaseClaimRequestExpiredOwner(t *testing.T) {
 
 	svc := &mockDynamoDB{
 		tableExist: true,
-		item: map[string]*dynamodb.AttributeValue{
-			LeaseOwnerKey:   {S: aws.String("abcd-efgh")},
-			ClaimRequestKey: {S: aws.String("ijkl-mnop")},
-			LeaseTimeoutKey: {S: aws.String(leaseTimeout.Format(time.RFC3339))},
+		item: map[string]types.AttributeValue{
+			LeaseOwnerKey:   &types.AttributeValueMemberS{Value: "abcd-efgh"},
+			ClaimRequestKey: &types.AttributeValueMemberS{Value: "ijkl-mnop"},
+			LeaseTimeoutKey: &types.AttributeValueMemberS{Value: leaseTimeout.Format(time.RFC3339)},
 		},
 	}
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
 		Checkpoint:   "",
@@ -251,15 +252,15 @@ func TestGetLeaseClaimRequestExpiredClaimer(t *testing.T) {
 
 	svc := &mockDynamoDB{
 		tableExist: true,
-		item: map[string]*dynamodb.AttributeValue{
-			LeaseOwnerKey:   {S: aws.String("abcd-efgh")},
-			ClaimRequestKey: {S: aws.String("ijkl-mnop")},
-			LeaseTimeoutKey: {S: aws.String(leaseTimeout.Format(time.RFC3339))},
+		item: map[string]types.AttributeValue{
+			LeaseOwnerKey:   &types.AttributeValueMemberS{Value: "abcd-efgh"},
+			ClaimRequestKey: &types.AttributeValueMemberS{Value: "ijkl-mnop"},
+			LeaseTimeoutKey: &types.AttributeValueMemberS{Value: leaseTimeout.Format(time.RFC3339)},
 		},
 	}
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
 		Checkpoint:   "",
@@ -276,11 +277,11 @@ func TestFetchCheckpointWithStealing(t *testing.T) {
 
 	svc := &mockDynamoDB{
 		tableExist: true,
-		item: map[string]*dynamodb.AttributeValue{
-			SequenceNumberKey: {S: aws.String("deadbeef")},
-			LeaseOwnerKey:     {S: aws.String("abcd-efgh")},
-			LeaseTimeoutKey: {
-				S: aws.String(future.Format(time.RFC3339)),
+		item: map[string]types.AttributeValue{
+			SequenceNumberKey: &types.AttributeValueMemberS{Value: "deadbeef"},
+			LeaseOwnerKey:     &types.AttributeValueMemberS{Value: "abcd-efgh"},
+			LeaseTimeoutKey: &types.AttributeValueMemberS{
+				Value: future.Format(time.RFC3339),
 			},
 		},
 	}
@@ -293,8 +294,8 @@ func TestFetchCheckpointWithStealing(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
 
 	status := &par.ShardStatus{
 		ID:           "0001",
@@ -303,14 +304,14 @@ func TestFetchCheckpointWithStealing(t *testing.T) {
 		Mux:          &sync.RWMutex{},
 	}
 
-	checkpoint.FetchCheckpoint(status)
+	_ = checkpoint.FetchCheckpoint(status)
 
-	leaseTimeout, _ := time.Parse(time.RFC3339, *svc.item[LeaseTimeoutKey].S)
+	leaseTimeout, _ := time.Parse(time.RFC3339, svc.item[LeaseTimeoutKey].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, leaseTimeout, status.LeaseTimeout)
 }
 
 func TestGetLeaseConditional(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
 		WithInitialPositionInStream(cfg.LATEST).
 		WithMaxRecords(10).
@@ -319,30 +320,31 @@ func TestGetLeaseConditional(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
-	marshalledCheckpoint := map[string]*dynamodb.AttributeValue{
-		LeaseKeyKey: {
-			S: aws.String("0001"),
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
+	marshalledCheckpoint := map[string]types.AttributeValue{
+		LeaseKeyKey: &types.AttributeValueMemberS{
+			Value: "0001",
 		},
-		LeaseOwnerKey: {
-			S: aws.String("abcd-efgh"),
+		LeaseOwnerKey: &types.AttributeValueMemberS{
+			Value: "abcd-efgh",
 		},
-		LeaseTimeoutKey: {
-			S: aws.String(time.Now().Add(-1 * time.Second).UTC().Format(time.RFC3339)),
+		LeaseTimeoutKey: &types.AttributeValueMemberS{
+			Value: time.Now().Add(-1 * time.Second).UTC().Format(time.RFC3339),
 		},
-		SequenceNumberKey: {
-			S: aws.String("deadbeef"),
+		SequenceNumberKey: &types.AttributeValueMemberS{
+			Value: "deadbeef",
 		},
-		ClaimRequestKey: {
-			S: aws.String("ijkl-mnop"),
+		ClaimRequestKey: &types.AttributeValueMemberS{
+			Value: "ijkl-mnop",
 		},
 	}
 	input := &dynamodb.PutItemInput{
 		TableName: aws.String("TableName"),
 		Item:      marshalledCheckpoint,
 	}
-	checkpoint.svc.PutItem(input)
+	_, _ = checkpoint.svc.PutItem(context.TODO(), input)
+
 	shard := &par.ShardStatus{
 		ID:           "0001",
 		Checkpoint:   "deadbeef",
@@ -358,26 +360,149 @@ func TestGetLeaseConditional(t *testing.T) {
 	if err != nil {
 		t.Errorf("Lease not aquired after timeout %s", err)
 	}
-	assert.Equal(t, *svc.expressionAttributeValues[":claim_request"].S, "ijkl-mnop")
+	assert.Equal(t, svc.expressionAttributeValues[":claim_request"].(*types.AttributeValueMemberS).Value, "ijkl-mnop")
 	assert.Contains(t, svc.conditionalExpression, " AND ClaimRequest = :claim_request")
 }
 
-type mockDynamoDB struct {
-	dynamodbiface.DynamoDBAPI
-	tableExist                bool
-	item                      map[string]*dynamodb.AttributeValue
-	conditionalExpression     string
-	expressionAttributeValues map[string]*dynamodb.AttributeValue
+func TestListActiveWorkers(t *testing.T) {
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
+	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
+		WithLeaseStealing(true)
+
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	err := checkpoint.Init()
+	if err != nil {
+		t.Errorf("Checkpoint initialization failed: %+v", err)
+	}
+
+	shardStatus := map[string]*par.ShardStatus{
+		"0000": {ID: "0000", AssignedTo: "worker_1", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0001": {ID: "0001", AssignedTo: "worker_2", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0002": {ID: "0002", AssignedTo: "worker_4", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0003": {ID: "0003", AssignedTo: "worker_0", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0004": {ID: "0004", AssignedTo: "worker_1", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0005": {ID: "0005", AssignedTo: "worker_3", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0006": {ID: "0006", AssignedTo: "worker_3", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0007": {ID: "0007", AssignedTo: "worker_0", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0008": {ID: "0008", AssignedTo: "worker_4", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0009": {ID: "0009", AssignedTo: "worker_2", Checkpoint: "", Mux: &sync.RWMutex{}},
+		"0010": {ID: "0010", AssignedTo: "worker_0", Checkpoint: ShardEnd, Mux: &sync.RWMutex{}},
+	}
+
+	workers, err := checkpoint.ListActiveWorkers(shardStatus)
+	if err != nil {
+		t.Error(err)
+	}
+
+	for workerID, shards := range workers {
+		assert.Equal(t, 2, len(shards))
+		for _, shard := range shards {
+			assert.Equal(t, workerID, shard.AssignedTo)
+		}
+	}
 }
 
-func (m *mockDynamoDB) ScanPages(*dynamodb.ScanInput, func(*dynamodb.ScanOutput, bool) bool) error {
+func TestListActiveWorkersErrShardNotAssigned(t *testing.T) {
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
+	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
+		WithLeaseStealing(true)
+
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	err := checkpoint.Init()
+	if err != nil {
+		t.Errorf("Checkpoint initialization failed: %+v", err)
+	}
+
+	shardStatus := map[string]*par.ShardStatus{
+		"0000": {ID: "0000", Mux: &sync.RWMutex{}},
+	}
+
+	_, err = checkpoint.ListActiveWorkers(shardStatus)
+	if err != ErrShardNotAssigned {
+		t.Error("Expected ErrShardNotAssigned when shard is missing AssignedTo value")
+	}
+}
+
+func TestClaimShard(t *testing.T) {
+	svc := &mockDynamoDB{tableExist: true, item: map[string]types.AttributeValue{}}
+	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
+		WithInitialPositionInStream(cfg.LATEST).
+		WithMaxRecords(10).
+		WithMaxLeasesForWorker(1).
+		WithShardSyncIntervalMillis(5000).
+		WithFailoverTimeMillis(300000).
+		WithLeaseStealing(true)
+
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	_ = checkpoint.Init()
+
+	marshalledCheckpoint := map[string]types.AttributeValue{
+		"ShardID": &types.AttributeValueMemberS{
+			Value: "0001",
+		},
+		"AssignedTo": &types.AttributeValueMemberS{
+			Value: "abcd-efgh",
+		},
+		"LeaseTimeout": &types.AttributeValueMemberS{
+			Value: time.Now().AddDate(0, -1, 0).UTC().Format(time.RFC3339),
+		},
+		"Checkpoint": &types.AttributeValueMemberS{
+			Value: "deadbeef",
+		},
+	}
+	input := &dynamodb.PutItemInput{
+		TableName: aws.String("TableName"),
+		Item:      marshalledCheckpoint,
+	}
+	_, _ = checkpoint.svc.PutItem(context.TODO(), input)
+
+	shard := &par.ShardStatus{
+		ID:         "0001",
+		Checkpoint: "deadbeef",
+		Mux:        &sync.RWMutex{},
+	}
+
+	err := checkpoint.ClaimShard(shard, "ijkl-mnop")
+	if err != nil {
+		t.Errorf("Shard not claimed %s", err)
+	}
+
+	claimRequest, ok := svc.item[ClaimRequestKey]
+	if !ok {
+		t.Error("Expected claimRequest to be set by ClaimShard")
+	} else if claimRequest.(*types.AttributeValueMemberS).Value != "ijkl-mnop" {
+		t.Errorf("Expected checkpoint to be ijkl-mnop. Got '%s'", claimRequest.(*types.AttributeValueMemberS).Value)
+	}
+
+	status := &par.ShardStatus{
+		ID:  shard.ID,
+		Mux: &sync.RWMutex{},
+	}
+	_ = checkpoint.FetchCheckpoint(status)
+
+	// asiggnedTo, checkpointer, and parent shard id should be the same
+	assert.Equal(t, shard.AssignedTo, status.AssignedTo)
+	assert.Equal(t, shard.Checkpoint, status.Checkpoint)
+	assert.Equal(t, shard.ParentShardId, status.ParentShardId)
+}
+
+type mockDynamoDB struct {
+	client                    *dynamodb.Client
+	tableExist                bool
+	item                      map[string]types.AttributeValue
+	conditionalExpression     string
+	expressionAttributeValues map[string]types.AttributeValue
+}
+
+func (m *mockDynamoDB) ScanPages(_ *dynamodb.ScanInput, _ func(*dynamodb.ScanOutput, bool) bool) error {
 	return nil
 }
 
-func (m *mockDynamoDB) DescribeTable(*dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
+func (m *mockDynamoDB) DescribeTable(_ *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
 	if !m.tableExist {
-		return &dynamodb.DescribeTableOutput{}, awserr.New(dynamodb.ErrCodeResourceNotFoundException, "doesNotExist", errors.New(""))
+		return &dynamodb.DescribeTableOutput{}, &types.ResourceNotFoundException{Message: aws.String("doesNotExist")}
 	}
+
 	return &dynamodb.DescribeTableOutput{}, nil
 }
 
@@ -417,7 +542,7 @@ func (m *mockDynamoDB) PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItemO
 	return nil, nil
 }
 
-func (m *mockDynamoDB) GetItem(input *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
+func (m *mockDynamoDB) GetItem(_ *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
 	return &dynamodb.GetItemOutput{
 		Item: m.item,
 	}, nil
@@ -426,134 +551,13 @@ func (m *mockDynamoDB) GetItem(input *dynamodb.GetItemInput) (*dynamodb.GetItemO
 func (m *mockDynamoDB) UpdateItem(input *dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error) {
 	exp := input.UpdateExpression
 
-	if aws.StringValue(exp) == "remove "+LeaseOwnerKey {
+	if aws.ToString(exp) == "remove "+LeaseOwnerKey {
 		delete(m.item, LeaseOwnerKey)
 	}
 
 	return nil, nil
 }
 
-func (m *mockDynamoDB) CreateTable(input *dynamodb.CreateTableInput) (*dynamodb.CreateTableOutput, error) {
+func (m *mockDynamoDB) CreateTable(_ *dynamodb.CreateTableInput) (*dynamodb.CreateTableOutput, error) {
 	return &dynamodb.CreateTableOutput{}, nil
-}
-
-func TestListActiveWorkers(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
-	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
-		WithLeaseStealing(true)
-
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	err := checkpoint.Init()
-	if err != nil {
-		t.Errorf("Checkpoint initialization failed: %+v", err)
-	}
-
-	shardStatus := map[string]*par.ShardStatus{
-		"0000": {ID: "0000", AssignedTo: "worker_1", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0001": {ID: "0001", AssignedTo: "worker_2", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0002": {ID: "0002", AssignedTo: "worker_4", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0003": {ID: "0003", AssignedTo: "worker_0", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0004": {ID: "0004", AssignedTo: "worker_1", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0005": {ID: "0005", AssignedTo: "worker_3", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0006": {ID: "0006", AssignedTo: "worker_3", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0007": {ID: "0007", AssignedTo: "worker_0", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0008": {ID: "0008", AssignedTo: "worker_4", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0009": {ID: "0009", AssignedTo: "worker_2", Checkpoint: "", Mux: &sync.RWMutex{}},
-		"0010": {ID: "0010", AssignedTo: "worker_0", Checkpoint: ShardEnd, Mux: &sync.RWMutex{}},
-	}
-
-	workers, err := checkpoint.ListActiveWorkers(shardStatus)
-	if err != nil {
-		t.Error(err)
-	}
-
-	for workerID, shards := range workers {
-		assert.Equal(t, 2, len(shards))
-		for _, shard := range shards {
-			assert.Equal(t, workerID, shard.AssignedTo)
-		}
-	}
-}
-
-func TestListActiveWorkersErrShardNotAssigned(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
-	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
-		WithLeaseStealing(true)
-
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	err := checkpoint.Init()
-	if err != nil {
-		t.Errorf("Checkpoint initialization failed: %+v", err)
-	}
-
-	shardStatus := map[string]*par.ShardStatus{
-		"0000": {ID: "0000", Mux: &sync.RWMutex{}},
-	}
-
-	_, err = checkpoint.ListActiveWorkers(shardStatus)
-	if err != ErrShardNotAssigned {
-		t.Error("Expected ErrShardNotAssigned when shard is missing AssignedTo value")
-	}
-}
-
-func TestClaimShard(t *testing.T) {
-	svc := &mockDynamoDB{tableExist: true, item: map[string]*dynamodb.AttributeValue{}}
-	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
-		WithInitialPositionInStream(cfg.LATEST).
-		WithMaxRecords(10).
-		WithMaxLeasesForWorker(1).
-		WithShardSyncIntervalMillis(5000).
-		WithFailoverTimeMillis(300000).
-		WithLeaseStealing(true)
-
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
-	checkpoint.Init()
-
-	marshalledCheckpoint := map[string]*dynamodb.AttributeValue{
-		"ShardID": {
-			S: aws.String("0001"),
-		},
-		"AssignedTo": {
-			S: aws.String("abcd-efgh"),
-		},
-		"LeaseTimeout": {
-			S: aws.String(time.Now().AddDate(0, -1, 0).UTC().Format(time.RFC3339)),
-		},
-		"Checkpoint": {
-			S: aws.String("deadbeef"),
-		},
-	}
-	input := &dynamodb.PutItemInput{
-		TableName: aws.String("TableName"),
-		Item:      marshalledCheckpoint,
-	}
-	checkpoint.svc.PutItem(input)
-	shard := &par.ShardStatus{
-		ID:         "0001",
-		Checkpoint: "deadbeef",
-		Mux:        &sync.RWMutex{},
-	}
-
-	err := checkpoint.ClaimShard(shard, "ijkl-mnop")
-	if err != nil {
-		t.Errorf("Shard not claimed %s", err)
-	}
-
-	claimRequest, ok := svc.item[ClaimRequestKey]
-	if !ok {
-		t.Error("Expected claimRequest to be set by ClaimShard")
-	} else if *claimRequest.S != "ijkl-mnop" {
-		t.Errorf("Expected checkpoint to be ijkl-mnop. Got '%s'", *claimRequest.S)
-	}
-
-	status := &par.ShardStatus{
-		ID:  shard.ID,
-		Mux: &sync.RWMutex{},
-	}
-	checkpoint.FetchCheckpoint(status)
-
-	// asiggnedTo, checkpointer, and parent shard id should be the same
-	assert.Equal(t, shard.AssignedTo, status.AssignedTo)
-	assert.Equal(t, shard.Checkpoint, status.Checkpoint)
-	assert.Equal(t, shard.ParentShardId, status.ParentShardId)
 }

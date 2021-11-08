@@ -30,27 +30,28 @@
 package cloudwatch
 
 import (
+	"context"
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	cwatch "github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/aws/aws-sdk-go/service/cloudwatch/cloudwatchiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+
+	cwatch "github.com/aws/aws-sdk-go-v2/service/cloudwatch"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
 	"github.com/vmware/vmware-go-kcl/logger"
 )
 
-// Buffer metrics for at most this long before publishing to CloudWatch.
-const DEFAULT_CLOUDWATCH_METRICS_BUFFER_DURATION = 10 * time.Second
+// DefaultCloudwatchMetricsBufferDuration Buffer metrics for at most this long before publishing to CloudWatch.
+const DefaultCloudwatchMetricsBufferDuration = 10 * time.Second
 
 type MonitoringService struct {
 	appName     string
 	streamName  string
 	workerID    string
 	region      string
-	credentials *credentials.Credentials
+	credentials *credentials.StaticCredentialsProvider
 	logger      logger.Logger
 
 	// control how often to publish to CloudWatch
@@ -58,7 +59,7 @@ type MonitoringService struct {
 
 	stop         *chan struct{}
 	waitGroup    *sync.WaitGroup
-	svc          cloudwatchiface.CloudWatchAPI
+	svc          *cwatch.Client
 	shardMetrics *sync.Map
 }
 
@@ -75,13 +76,13 @@ type cloudWatchMetrics struct {
 }
 
 // NewMonitoringService returns a Monitoring service publishing metrics to CloudWatch.
-func NewMonitoringService(region string, creds *credentials.Credentials) *MonitoringService {
-	return NewMonitoringServiceWithOptions(region, creds, logger.GetDefaultLogger(), DEFAULT_CLOUDWATCH_METRICS_BUFFER_DURATION)
+func NewMonitoringService(region string, creds *credentials.StaticCredentialsProvider) *MonitoringService {
+	return NewMonitoringServiceWithOptions(region, creds, logger.GetDefaultLogger(), DefaultCloudwatchMetricsBufferDuration)
 }
 
 // NewMonitoringServiceWithOptions returns a Monitoring service publishing metrics to
 // CloudWatch with the provided credentials, buffering duration and logger.
-func NewMonitoringServiceWithOptions(region string, creds *credentials.Credentials, logger logger.Logger, bufferDur time.Duration) *MonitoringService {
+func NewMonitoringServiceWithOptions(region string, creds *credentials.StaticCredentialsProvider, logger logger.Logger, bufferDur time.Duration) *MonitoringService {
 	return &MonitoringService{
 		region:         region,
 		credentials:    creds,
@@ -95,15 +96,11 @@ func (cw *MonitoringService) Init(appName, streamName, workerID string) error {
 	cw.streamName = streamName
 	cw.workerID = workerID
 
-	cfg := &aws.Config{Region: aws.String(cw.region)}
+	cfg := &aws.Config{Region: cw.region}
 	cfg.Credentials = cw.credentials
-	s, err := session.NewSession(cfg)
-	if err != nil {
-		cw.logger.Errorf("Error in creating session for cloudwatch. %+v", err)
-		return err
-	}
-	cw.svc = cwatch.New(s)
-	cw.shardMetrics = new(sync.Map)
+
+	cw.svc = cwatch.NewFromConfig(*cfg)
+	cw.shardMetrics = &sync.Map{}
 
 	stopChan := make(chan struct{})
 	cw.stop = &stopChan
@@ -150,7 +147,7 @@ func (cw *MonitoringService) eventloop() {
 
 func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics) bool {
 	metric.Lock()
-	defaultDimensions := []*cwatch.Dimension{
+	defaultDimensions := []types.Dimension{
 		{
 			Name:  aws.String("Shard"),
 			Value: &shard,
@@ -161,7 +158,7 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 		},
 	}
 
-	leaseDimensions := []*cwatch.Dimension{
+	leaseDimensions := []types.Dimension{
 		{
 			Name:  aws.String("Shard"),
 			Value: &shard,
@@ -177,44 +174,44 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 	}
 	metricTimestamp := time.Now()
 
-	data := []*cwatch.MetricDatum{
+	data := []types.MetricDatum{
 		{
 			Dimensions: defaultDimensions,
 			MetricName: aws.String("RecordsProcessed"),
-			Unit:       aws.String("Count"),
+			Unit:       types.StandardUnitCount,
 			Timestamp:  &metricTimestamp,
 			Value:      aws.Float64(float64(metric.processedRecords)),
 		},
 		{
 			Dimensions: defaultDimensions,
 			MetricName: aws.String("DataBytesProcessed"),
-			Unit:       aws.String("Bytes"),
+			Unit:       types.StandardUnitBytes,
 			Timestamp:  &metricTimestamp,
 			Value:      aws.Float64(float64(metric.processedBytes)),
 		},
 		{
 			Dimensions: leaseDimensions,
 			MetricName: aws.String("RenewLease.Success"),
-			Unit:       aws.String("Count"),
+			Unit:       types.StandardUnitCount,
 			Timestamp:  &metricTimestamp,
 			Value:      aws.Float64(float64(metric.leaseRenewals)),
 		},
 		{
 			Dimensions: leaseDimensions,
 			MetricName: aws.String("CurrentLeases"),
-			Unit:       aws.String("Count"),
+			Unit:       types.StandardUnitCount,
 			Timestamp:  &metricTimestamp,
 			Value:      aws.Float64(float64(metric.leasesHeld)),
 		},
 	}
 
 	if len(metric.behindLatestMillis) > 0 {
-		data = append(data, &cwatch.MetricDatum{
+		data = append(data, types.MetricDatum{
 			Dimensions: defaultDimensions,
 			MetricName: aws.String("MillisBehindLatest"),
-			Unit:       aws.String("Milliseconds"),
+			Unit:       types.StandardUnitMilliseconds,
 			Timestamp:  &metricTimestamp,
-			StatisticValues: &cwatch.StatisticSet{
+			StatisticValues: &types.StatisticSet{
 				SampleCount: aws.Float64(float64(len(metric.behindLatestMillis))),
 				Sum:         sumFloat64(metric.behindLatestMillis),
 				Maximum:     maxFloat64(metric.behindLatestMillis),
@@ -223,12 +220,12 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 	}
 
 	if len(metric.getRecordsTime) > 0 {
-		data = append(data, &cwatch.MetricDatum{
+		data = append(data, types.MetricDatum{
 			Dimensions: defaultDimensions,
 			MetricName: aws.String("KinesisDataFetcher.getRecords.Time"),
-			Unit:       aws.String("Milliseconds"),
+			Unit:       types.StandardUnitMilliseconds,
 			Timestamp:  &metricTimestamp,
-			StatisticValues: &cwatch.StatisticSet{
+			StatisticValues: &types.StatisticSet{
 				SampleCount: aws.Float64(float64(len(metric.getRecordsTime))),
 				Sum:         sumFloat64(metric.getRecordsTime),
 				Maximum:     maxFloat64(metric.getRecordsTime),
@@ -237,12 +234,12 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 	}
 
 	if len(metric.processRecordsTime) > 0 {
-		data = append(data, &cwatch.MetricDatum{
+		data = append(data, types.MetricDatum{
 			Dimensions: defaultDimensions,
 			MetricName: aws.String("RecordProcessor.processRecords.Time"),
-			Unit:       aws.String("Milliseconds"),
+			Unit:       types.StandardUnitMilliseconds,
 			Timestamp:  &metricTimestamp,
-			StatisticValues: &cwatch.StatisticSet{
+			StatisticValues: &types.StatisticSet{
 				SampleCount: aws.Float64(float64(len(metric.processRecordsTime))),
 				Sum:         sumFloat64(metric.processRecordsTime),
 				Maximum:     maxFloat64(metric.processRecordsTime),
@@ -251,7 +248,7 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 	}
 
 	// Publish metrics data to cloud watch
-	_, err := cw.svc.PutMetricData(&cwatch.PutMetricDataInput{
+	_, err := cw.svc.PutMetricData(context.TODO(), &cwatch.PutMetricDataInput{
 		Namespace:  aws.String(cw.appName),
 		MetricData: data,
 	})

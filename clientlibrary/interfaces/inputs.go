@@ -38,20 +38,20 @@ package interfaces
 import (
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	ks "github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 )
 
 const (
-	/**
-	 * Indicates that the entire application is being shutdown, and if desired the record processor will be given a
+	/*
+	 * REQUESTED Indicates that the entire application is being shutdown, and if desired the record processor will be given a
 	 * final chance to checkpoint. This state will not trigger a direct call to
 	 * {@link com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor#shutdown(ShutdownInput)}, but
 	 * instead depend on a different interface for backward compatibility.
 	 */
 	REQUESTED ShutdownReason = iota + 1
 
-	/**
+	/*
 	 * Terminate processing for this RecordProcessor (resharding use case).
 	 * Indicates that the shard is closed and all records from the shard have been delivered to the application.
 	 * Applications SHOULD checkpoint their progress to indicate that they have successfully processed all records
@@ -95,7 +95,7 @@ type (
 		CacheExitTime *time.Time
 
 		// The records received from Kinesis. These records may have been de-aggregated if they were published by the KPL.
-		Records []*ks.Record
+		Records []types.Record
 
 		// A checkpointer that the RecordProcessor can use to checkpoint its progress.
 		Checkpointer IRecordProcessorCheckpointer

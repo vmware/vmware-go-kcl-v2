@@ -39,7 +39,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 
 	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
 	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
@@ -54,13 +54,13 @@ func NewKinesisClientLibConfig(applicationName, streamName, regionName, workerID
 
 // NewKinesisClientLibConfigWithCredential creates a default KinesisClientLibConfiguration based on the required fields and unique credentials.
 func NewKinesisClientLibConfigWithCredential(applicationName, streamName, regionName, workerID string,
-	creds *credentials.Credentials) *KinesisClientLibConfiguration {
+	creds *credentials.StaticCredentialsProvider) *KinesisClientLibConfiguration {
 	return NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regionName, workerID, creds, creds)
 }
 
 // NewKinesisClientLibConfigWithCredentials creates a default KinesisClientLibConfiguration based on the required fields and specific credentials for each service.
 func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regionName, workerID string,
-	kiniesisCreds, dynamodbCreds *credentials.Credentials) *KinesisClientLibConfiguration {
+	kinesisCreds, dynamodbCreds *credentials.StaticCredentialsProvider) *KinesisClientLibConfiguration {
 	checkIsValueNotEmpty("ApplicationName", applicationName)
 	checkIsValueNotEmpty("StreamName", streamName)
 	checkIsValueNotEmpty("RegionName", regionName)
@@ -70,31 +70,31 @@ func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regio
 	}
 
 	// populate the KCL configuration with default values
-	return &KinesisClientLibConfiguration{
-		ApplicationName:                                  applicationName,
-		KinesisCredentials:                               kiniesisCreds,
-		DynamoDBCredentials:                              dynamodbCreds,
-		TableName:                                        applicationName,
-		EnhancedFanOutConsumerName:                       applicationName,
-		StreamName:                                       streamName,
-		RegionName:                                       regionName,
-		WorkerID:                                         workerID,
-		InitialPositionInStream:                          DefaultInitialPositionInStream,
-		InitialPositionInStreamExtended:                  *newInitialPosition(DefaultInitialPositionInStream),
-		FailoverTimeMillis:                               DefaultFailoverTimeMillis,
-		LeaseRefreshPeriodMillis:                         DefaultLeaseRefreshPeriodMillis,
-		MaxRecords:                                       DefaultMaxRecords,
-		IdleTimeBetweenReadsInMillis:                     DefaultIdletimeBetweenReadsMillis,
-		CallProcessRecordsEvenForEmptyRecordList:         DefaultDontCallProcessRecordsForEmptyRecordList,
-		ParentShardPollIntervalMillis:                    DefaultParentShardPollIntervalMillis,
-		ShardSyncIntervalMillis:                          DefaultShardSyncIntervalMillis,
-		CleanupTerminatedShardsBeforeExpiry:              DefaultCleanupLeasesUponShardsCompletion,
-		TaskBackoffTimeMillis:                            DefaultTaskBackoffTimeMillis,
-		ValidateSequenceNumberBeforeCheckpointing:        DefaultValidateSequenceNumberBeforeCheckpointing,
-		ShutdownGraceMillis:                              DefaultShutdownGraceMillis,
-		MaxLeasesForWorker:                               DefaultMaxLeasesForWorker,
-		MaxLeasesToStealAtOneTime:                        DefaultMaxLeasesToStealAtOneTime,
-		InitialLeaseTableReadCapacity:                    DefaultInitialLeaseTableReadCapacity,
+	return &KinesisClientLibConfiguration {
+		ApplicationName:                 applicationName,
+		KinesisCredentials:              kinesisCreds,
+		DynamoDBCredentials:             dynamodbCreds,
+		TableName:                       applicationName,
+		EnhancedFanOutConsumerName:      applicationName,
+		StreamName:                      streamName,
+		RegionName:                      regionName,
+		WorkerID:                        workerID,
+		InitialPositionInStream:         DefaultInitialPositionInStream,
+		InitialPositionInStreamExtended: *newInitialPosition(DefaultInitialPositionInStream),
+		FailoverTimeMillis:              DefaultFailoverTimeMillis,
+		LeaseRefreshPeriodMillis:        DefaultLeaseRefreshPeriodMillis,
+		MaxRecords:                                DefaultMaxRecords,
+		IdleTimeBetweenReadsInMillis:              DefaultIdleTimeBetweenReadsMillis,
+		CallProcessRecordsEvenForEmptyRecordList:  DefaultDontCallProcessRecordsForEmptyRecordList,
+		ParentShardPollIntervalMillis:             DefaultParentShardPollIntervalMillis,
+		ShardSyncIntervalMillis:                   DefaultShardSyncIntervalMillis,
+		CleanupTerminatedShardsBeforeExpiry:       DefaultCleanupLeasesUponShardsCompletion,
+		TaskBackoffTimeMillis:                     DefaultTaskBackoffTimeMillis,
+		ValidateSequenceNumberBeforeCheckpointing: DefaultValidateSequenceNumberBeforeCheckpointing,
+		ShutdownGraceMillis:                       DefaultShutdownGraceMillis,
+		MaxLeasesForWorker:                        DefaultMaxLeasesForWorker,
+		MaxLeasesToStealAtOneTime:                 DefaultMaxLeasesToStealAtOneTime,
+		InitialLeaseTableReadCapacity:             DefaultInitialLeaseTableReadCapacity,
 		InitialLeaseTableWriteCapacity:                   DefaultInitialLeaseTableWriteCapacity,
 		SkipShardSyncAtWorkerInitializationIfLeasesExist: DefaultSkipShardSyncAtStartupIfLeasesExist,
 		EnableLeaseStealing:                              DefaultEnableLeaseStealing,

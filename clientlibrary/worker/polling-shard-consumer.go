@@ -16,6 +16,8 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package worker
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
 // Copyright 2018 Patrick robinson
@@ -28,17 +30,18 @@
 package worker
 
 import (
+	"context"
 	"errors"
 	"math"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
 	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
-	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
 )
 
 // PollingShardConsumer is responsible for polling data records from a (specified) shard.
@@ -56,6 +59,7 @@ func (sc *PollingShardConsumer) getShardIterator() (*string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	shardIterArgs := &kinesis.GetShardIteratorInput{
 		ShardId:                &sc.shard.ID,
 		ShardIteratorType:      startPosition.Type,
@@ -63,14 +67,16 @@ func (sc *PollingShardConsumer) getShardIterator() (*string, error) {
 		Timestamp:              startPosition.Timestamp,
 		StreamName:             &sc.streamName,
 	}
-	iterResp, err := sc.kc.GetShardIterator(shardIterArgs)
+
+	iterResp, err := sc.kc.GetShardIterator(context.TODO(), shardIterArgs)
 	if err != nil {
 		return nil, err
 	}
+
 	return iterResp.ShardIterator, nil
 }
 
-// getRecords continously poll one shard for data record
+// getRecords continuously poll one shard for data record
 // Precondition: it currently has the lease on the shard.
 func (sc *PollingShardConsumer) getRecords() error {
 	defer sc.releaseLease()
@@ -120,15 +126,19 @@ func (sc *PollingShardConsumer) getRecords() error {
 
 		getRecordsStartTime := time.Now()
 
-		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.StringValue(shardIterator))
+		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.ToString(shardIterator))
 		getRecordsArgs := &kinesis.GetRecordsInput{
-			Limit:         aws.Int64(int64(sc.kclConfig.MaxRecords)),
+			Limit:         aws.Int32(int32(sc.kclConfig.MaxRecords)),
 			ShardIterator: shardIterator,
 		}
+
 		// Get records from stream and retry as needed
-		getResp, err := sc.kc.GetRecords(getRecordsArgs)
+		getResp, err := sc.kc.GetRecords(context.TODO(), getRecordsArgs)
 		if err != nil {
-			if utils.AWSErrCode(err) == kinesis.ErrCodeProvisionedThroughputExceededException || utils.AWSErrCode(err) == kinesis.ErrCodeKMSThrottlingException {
+			//aws-sdk-go-v2 https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md#error-handling
+			var throughputExceededErr *types.ProvisionedThroughputExceededException
+			var kmsThrottlingErr *types.KMSThrottlingException
+			if errors.As(err, &throughputExceededErr) || errors.As(err, &kmsThrottlingErr) {
 				log.Errorf("Error getting records from shard %v: %+v", sc.shard.ID, err)
 				retriedErrors++
 				// exponential backoff
@@ -156,7 +166,7 @@ func (sc *PollingShardConsumer) getRecords() error {
 		// Idle between each read, the user is responsible for checkpoint the progress
 		// This value is only used when no records are returned; if records are returned, it should immediately
 		// retrieve the next set of records.
-		if len(getResp.Records) == 0 && aws.Int64Value(getResp.MillisBehindLatest) < int64(sc.kclConfig.IdleTimeBetweenReadsInMillis) {
+		if len(getResp.Records) == 0 && aws.ToInt64(getResp.MillisBehindLatest) < int64(sc.kclConfig.IdleTimeBetweenReadsInMillis) {
 			time.Sleep(time.Duration(sc.kclConfig.IdleTimeBetweenReadsInMillis) * time.Millisecond)
 		}
 

@@ -16,22 +16,24 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package worker
 package worker
 
 import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
-	"github.com/aws/aws-sdk-go/service/kinesis/kinesisiface"
-	deagg "github.com/awslabs/kinesis-aggregation/go/deaggregator"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
 	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
 	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
 	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
+	deagg "github.com/vmware/vmware-go-kcl/internal/deaggregator"
 )
 
 type shardConsumer interface {
@@ -41,7 +43,7 @@ type shardConsumer interface {
 // commonShardConsumer implements common functionality for regular and enhanced fan-out consumers
 type commonShardConsumer struct {
 	shard           *par.ShardStatus
-	kc              kinesisiface.KinesisAPI
+	kc              *kinesis.Client
 	checkpointer    chk.Checkpointer
 	recordProcessor kcl.IRecordProcessor
 	kclConfig       *config.KinesisClientLibConfiguration
@@ -66,7 +68,7 @@ func (sc *commonShardConsumer) releaseLease() {
 
 // getStartingPosition gets kinesis stating position.
 // First try to fetch checkpoint. If checkpoint is not found use InitialPositionInStream
-func (sc *commonShardConsumer) getStartingPosition() (*kinesis.StartingPosition, error) {
+func (sc *commonShardConsumer) getStartingPosition() (*types.StartingPosition, error) {
 	err := sc.checkpointer.FetchCheckpoint(sc.shard)
 	if err != nil && err != chk.ErrSequenceIDNotFound {
 		return nil, err
@@ -75,24 +77,29 @@ func (sc *commonShardConsumer) getStartingPosition() (*kinesis.StartingPosition,
 	checkpoint := sc.shard.GetCheckpoint()
 	if checkpoint != "" {
 		sc.kclConfig.Logger.Debugf("Start shard: %v at checkpoint: %v", sc.shard.ID, checkpoint)
-		return &kinesis.StartingPosition{
-			Type:           aws.String("AFTER_SEQUENCE_NUMBER"),
+		return &types.StartingPosition{
+			Type:           types.ShardIteratorTypeAfterSequenceNumber,
 			SequenceNumber: &checkpoint,
 		}, nil
 	}
 
 	shardIteratorType := config.InitalPositionInStreamToShardIteratorType(sc.kclConfig.InitialPositionInStream)
-	sc.kclConfig.Logger.Debugf("No checkpoint recorded for shard: %v, starting with: %v", sc.shard.ID, aws.StringValue(shardIteratorType))
-
+	sc.kclConfig.Logger.Debugf("No checkpoint recorded for shard: %v, starting with: %v", sc.shard.ID, aws.ToString(shardIteratorType))
 	if sc.kclConfig.InitialPositionInStream == config.AT_TIMESTAMP {
-		return &kinesis.StartingPosition{
-			Type:      shardIteratorType,
+		return &types.StartingPosition{
+			Type:      types.ShardIteratorTypeAtTimestamp,
 			Timestamp: sc.kclConfig.InitialPositionInStreamExtended.Timestamp,
 		}, nil
 	}
 
-	return &kinesis.StartingPosition{
-		Type: shardIteratorType,
+	if *shardIteratorType == "TRIM_HORIZON" {
+		return &types.StartingPosition{
+			Type: types.ShardIteratorTypeTrimHorizon,
+		}, nil
+	}
+
+	return &types.StartingPosition{
+		Type: types.ShardIteratorTypeLatest,
 	}, nil
 }
 
@@ -121,7 +128,7 @@ func (sc *commonShardConsumer) waitOnParentShard() error {
 	}
 }
 
-func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, records []*kinesis.Record, millisBehindLatest *int64, recordCheckpointer kcl.IRecordProcessorCheckpointer) {
+func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, records []types.Record, millisBehindLatest *int64, recordCheckpointer kcl.IRecordProcessorCheckpointer) {
 	log := sc.kclConfig.Logger
 
 	getRecordsTime := time.Since(getRecordsStartTime).Milliseconds()
@@ -139,7 +146,7 @@ func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, rec
 
 	input := &kcl.ProcessRecordsInput{
 		Records:            dars,
-		MillisBehindLatest: aws.Int64Value(millisBehindLatest),
+		MillisBehindLatest: *millisBehindLatest,
 		Checkpointer:       recordCheckpointer,
 	}
 

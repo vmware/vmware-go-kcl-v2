@@ -19,14 +19,14 @@
 package test
 
 import (
+	"context"
 	"os"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
@@ -77,7 +77,8 @@ func TestWorkerInjectCheckpointer(t *testing.T) {
 		ID:  shardID,
 		Mux: &sync.RWMutex{},
 	}
-	checkpointer.FetchCheckpoint(status)
+
+	_ = checkpointer.FetchCheckpoint(status)
 
 	// checkpointer should be the same
 	assert.NotEmpty(t, status.Checkpoint)
@@ -104,12 +105,13 @@ func TestWorkerInjectKinesis(t *testing.T) {
 	// configure cloudwatch as metrics system
 	kclConfig.WithMonitoringService(getMetricsConfig(kclConfig, metricsSystem))
 
-	// create custom Kinesis
-	s, err := session.NewSession(&aws.Config{
-		Region: aws.String(regionName),
-	})
+	defaultConfig, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion(regionName),
+	)
+
 	assert.Nil(t, err)
-	kc := kinesis.New(s)
+	kc := kinesis.NewFromConfig(defaultConfig)
 
 	// Put some data into stream.
 	// publishSomeData(t, kc)
@@ -146,11 +148,13 @@ func TestWorkerInjectKinesisAndCheckpointer(t *testing.T) {
 	kclConfig.WithMonitoringService(getMetricsConfig(kclConfig, metricsSystem))
 
 	// create custom Kinesis
-	s, err := session.NewSession(&aws.Config{
-		Region: aws.String(regionName),
-	})
+	defaultConfig, err := config.LoadDefaultConfig(
+		context.TODO(),
+		config.WithRegion(regionName),
+	)
+
 	assert.Nil(t, err)
-	kc := kinesis.New(s)
+	kc := kinesis.NewFromConfig(defaultConfig)
 
 	// Put some data into stream.
 	// publishSomeData(t, kc)

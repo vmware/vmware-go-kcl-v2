@@ -16,14 +16,18 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package worker
 package worker
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 
 	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
 	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
@@ -61,11 +65,11 @@ func (sc *FanOutShardConsumer) getRecords() error {
 		return err
 	}
 	defer func() {
-		if shardSub == nil || shardSub.EventStream == nil {
+		if shardSub == nil || shardSub.GetStream() == nil {
 			log.Debugf("Nothing to close, EventStream is nil")
 			return
 		}
-		err = shardSub.EventStream.Close()
+		err = shardSub.GetStream().Close()
 		if err != nil {
 			log.Errorf("Unable to close event stream for %s: %v", sc.shard.ID, err)
 		}
@@ -99,7 +103,7 @@ func (sc *FanOutShardConsumer) getRecords() error {
 				return err
 			}
 			refreshLeaseTimer = time.After(time.Until(sc.shard.LeaseTimeout.Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)))
-		case event, ok := <-shardSub.EventStream.Events():
+		case event, ok := <-shardSub.GetStream().Events():
 			if !ok {
 				// need to resubscribe to shard
 				log.Debugf("Event stream ended, refreshing subscription on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
@@ -113,13 +117,13 @@ func (sc *FanOutShardConsumer) getRecords() error {
 				}
 				continue
 			}
-			subEvent, ok := event.(*kinesis.SubscribeToShardEvent)
+			subEvent, ok := event.(*types.SubscribeToShardEventStreamMemberSubscribeToShardEvent)
 			if !ok {
 				log.Errorf("Received unexpected event type: %T", event)
 				continue
 			}
-			continuationSequenceNumber = subEvent.ContinuationSequenceNumber
-			sc.processRecords(getRecordsStartTime, subEvent.Records, subEvent.MillisBehindLatest, recordCheckpointer)
+			continuationSequenceNumber = subEvent.Value.ContinuationSequenceNumber
+			sc.processRecords(getRecordsStartTime, subEvent.Value.Records, subEvent.Value.MillisBehindLatest, recordCheckpointer)
 
 			// The shard has been closed, so no new records can be read from it
 			if continuationSequenceNumber == nil {
@@ -138,7 +142,7 @@ func (sc *FanOutShardConsumer) subscribeToShard() (*kinesis.SubscribeToShardOutp
 		return nil, err
 	}
 
-	return sc.kc.SubscribeToShard(&kinesis.SubscribeToShardInput{
+	return sc.kc.SubscribeToShard(context.TODO(), &kinesis.SubscribeToShardInput{
 		ConsumerARN:      &sc.consumerARN,
 		ShardId:          &sc.shard.ID,
 		StartingPosition: startPosition,
@@ -146,16 +150,16 @@ func (sc *FanOutShardConsumer) subscribeToShard() (*kinesis.SubscribeToShardOutp
 }
 
 func (sc *FanOutShardConsumer) resubscribe(shardSub *kinesis.SubscribeToShardOutput, continuationSequence *string) (*kinesis.SubscribeToShardOutput, error) {
-	err := shardSub.EventStream.Close()
+	err := shardSub.GetStream().Close()
 	if err != nil {
 		sc.kclConfig.Logger.Errorf("Unable to close event stream for %s: %v", sc.shard.ID, err)
 		return nil, err
 	}
-	startPosition := &kinesis.StartingPosition{
-		Type:           aws.String("AFTER_SEQUENCE_NUMBER"),
+	startPosition := &types.StartingPosition{
+		Type:           types.ShardIteratorTypeAfterSequenceNumber,
 		SequenceNumber: continuationSequence,
 	}
-	shardSub, err = sc.kc.SubscribeToShard(&kinesis.SubscribeToShardInput{
+	shardSub, err = sc.kc.SubscribeToShard(context.TODO(), &kinesis.SubscribeToShardInput{
 		ConsumerARN:      &sc.consumerARN,
 		ShardId:          &sc.shard.ID,
 		StartingPosition: startPosition,

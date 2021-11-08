@@ -16,16 +16,19 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
  * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
+
+// Package worker
 package worker
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/kinesis"
-
-	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis"
+	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 )
 
 // fetchConsumerARNWithRetry tries to fetch consumer ARN. Retries 10 times with exponential backoff in case of an error
@@ -50,27 +53,34 @@ func (w *Worker) fetchConsumerARNWithRetry() (string, error) {
 func (w *Worker) fetchConsumerARN() (string, error) {
 	log := w.kclConfig.Logger
 	log.Debugf("Fetching stream consumer ARN")
-	streamDescription, err := w.kc.DescribeStream(&kinesis.DescribeStreamInput{
+
+	streamDescription, err := w.kc.DescribeStream(context.TODO(), &kinesis.DescribeStreamInput{
 		StreamName: &w.kclConfig.StreamName,
 	})
+
 	if err != nil {
 		log.Errorf("Could not describe stream: %v", err)
 		return "", err
 	}
-	streamConsumerDescription, err := w.kc.DescribeStreamConsumer(&kinesis.DescribeStreamConsumerInput{
+
+	streamConsumerDescription, err := w.kc.DescribeStreamConsumer(context.TODO(), &kinesis.DescribeStreamConsumerInput{
 		ConsumerName: &w.kclConfig.EnhancedFanOutConsumerName,
 		StreamARN:    streamDescription.StreamDescription.StreamARN,
 	})
+
 	if err == nil {
-		log.Infof("Enhanced fan-out consumer found, consumer status: %s", *streamConsumerDescription.ConsumerDescription.ConsumerStatus)
-		if *streamConsumerDescription.ConsumerDescription.ConsumerStatus != kinesis.ConsumerStatusActive {
-			return "", fmt.Errorf("consumer is not in active status yet, current status: %s", *streamConsumerDescription.ConsumerDescription.ConsumerStatus)
+		log.Infof("Enhanced fan-out consumer found, consumer status: %s", streamConsumerDescription.ConsumerDescription.ConsumerStatus)
+		if streamConsumerDescription.ConsumerDescription.ConsumerStatus != types.ConsumerStatusActive {
+			return "", fmt.Errorf("consumer is not in active status yet, current status: %s", streamConsumerDescription.ConsumerDescription.ConsumerStatus)
 		}
 		return *streamConsumerDescription.ConsumerDescription.ConsumerARN, nil
 	}
-	if utils.AWSErrCode(err) == kinesis.ErrCodeResourceNotFoundException {
+
+	//aws-sdk-go-v2 https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md#error-handling
+	var notFoundErr *types.ResourceNotFoundException
+	if errors.As(err, &notFoundErr) {
 		log.Infof("Enhanced fan-out consumer not found, registering new consumer with name: %s", w.kclConfig.EnhancedFanOutConsumerName)
-		out, err := w.kc.RegisterStreamConsumer(&kinesis.RegisterStreamConsumerInput{
+		out, err := w.kc.RegisterStreamConsumer(context.TODO(), &kinesis.RegisterStreamConsumerInput{
 			ConsumerName: &w.kclConfig.EnhancedFanOutConsumerName,
 			StreamARN:    streamDescription.StreamDescription.StreamARN,
 		})
@@ -78,11 +88,13 @@ func (w *Worker) fetchConsumerARN() (string, error) {
 			log.Errorf("Could not register enhanced fan-out consumer: %v", err)
 			return "", err
 		}
-		if *out.Consumer.ConsumerStatus != kinesis.ConsumerStatusActive {
-			return "", fmt.Errorf("consumer is not in active status yet, current status: %s", *out.Consumer.ConsumerStatus)
+		if out.Consumer.ConsumerStatus != types.ConsumerStatusActive {
+			return "", fmt.Errorf("consumer is not in active status yet, current status: %s", out.Consumer.ConsumerStatus)
 		}
 		return *out.Consumer.ConsumerARN, nil
 	}
-	log.Errorf("Could not describe stream consumer: %v", err)
+
+	log.Errorf("Could not describe stream consumer: %v", err) //%w should we unwrap the underlying error?
+
 	return "", err
 }
