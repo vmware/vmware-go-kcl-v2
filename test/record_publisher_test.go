@@ -47,7 +47,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credenti
 	t.Logf("Creating Kinesis client")
 
 	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
-		return aws.Endpoint {
+		return aws.Endpoint{
 			PartitionID:   "aws",
 			URL:           endpoint,
 			SigningRegion: regionName,
@@ -73,13 +73,13 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credenti
 		t.Fatalf("Failed in loading Kinesis default config for creating Worker: %+v", err)
 	}
 
-	return  kinesis.NewFromConfig(cfg)
+	return kinesis.NewFromConfig(cfg)
 }
 
 // NewDynamoDBClient to create a Kinesis Client.
 func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds *credentials.StaticCredentialsProvider) *dynamodb.Client {
 	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
-		return aws.Endpoint {
+		return aws.Endpoint{
 			PartitionID:   "aws",
 			URL:           endpoint,
 			SigningRegion: regionName,
@@ -111,7 +111,7 @@ func continuouslyPublishSomeData(t *testing.T, kc *kinesis.Client) func() {
 	var shards []types.Shard
 	var nextToken *string
 	for {
-		out, err := kc.ListShards(context.TODO(), &kinesis.ListShardsInput {
+		out, err := kc.ListShards(context.TODO(), &kinesis.ListShardsInput{
 			StreamName: aws.String(streamName),
 			NextToken:  nextToken,
 		})
@@ -185,7 +185,7 @@ func publishSomeData(t *testing.T, kc *kinesis.Client) {
 
 // publishRecord to put a record into Kinesis stream using PutRecord API.
 func publishRecord(t *testing.T, kc *kinesis.Client, hashKey *string) {
-	input := &kinesis.PutRecordInput {
+	input := &kinesis.PutRecordInput{
 		Data:         []byte(specstr),
 		StreamName:   aws.String(streamName),
 		PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),
@@ -207,7 +207,7 @@ func publishRecords(t *testing.T, kc *kinesis.Client) {
 	records := make([]types.PutRecordsRequestEntry, 5)
 
 	for i := 0; i < 5; i++ {
-		record := types.PutRecordsRequestEntry {
+		record := types.PutRecordsRequestEntry{
 			Data:         []byte(specstr),
 			PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),
 		}
@@ -228,7 +228,7 @@ func publishRecords(t *testing.T, kc *kinesis.Client) {
 func publishAggregateRecord(t *testing.T, kc *kinesis.Client) {
 	data := generateAggregateRecord(5, specstr)
 	// Use random string as partition key to ensure even distribution across shards
-	_, err := kc.PutRecord(context.TODO(), &kinesis.PutRecordInput {
+	_, err := kc.PutRecord(context.TODO(), &kinesis.PutRecordInput{
 		Data:         data,
 		StreamName:   aws.String(streamName),
 		PartitionKey: aws.String(utils.RandStringBytesMaskImpr(10)),

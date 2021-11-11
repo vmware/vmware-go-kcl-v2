@@ -70,31 +70,31 @@ func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regio
 	}
 
 	// populate the KCL configuration with default values
-	return &KinesisClientLibConfiguration {
-		ApplicationName:                 applicationName,
-		KinesisCredentials:              kinesisCreds,
-		DynamoDBCredentials:             dynamodbCreds,
-		TableName:                       applicationName,
-		EnhancedFanOutConsumerName:      applicationName,
-		StreamName:                      streamName,
-		RegionName:                      regionName,
-		WorkerID:                        workerID,
-		InitialPositionInStream:         DefaultInitialPositionInStream,
-		InitialPositionInStreamExtended: *newInitialPosition(DefaultInitialPositionInStream),
-		FailoverTimeMillis:              DefaultFailoverTimeMillis,
-		LeaseRefreshPeriodMillis:        DefaultLeaseRefreshPeriodMillis,
-		MaxRecords:                                DefaultMaxRecords,
-		IdleTimeBetweenReadsInMillis:              DefaultIdleTimeBetweenReadsMillis,
-		CallProcessRecordsEvenForEmptyRecordList:  DefaultDontCallProcessRecordsForEmptyRecordList,
-		ParentShardPollIntervalMillis:             DefaultParentShardPollIntervalMillis,
-		ShardSyncIntervalMillis:                   DefaultShardSyncIntervalMillis,
-		CleanupTerminatedShardsBeforeExpiry:       DefaultCleanupLeasesUponShardsCompletion,
-		TaskBackoffTimeMillis:                     DefaultTaskBackoffTimeMillis,
-		ValidateSequenceNumberBeforeCheckpointing: DefaultValidateSequenceNumberBeforeCheckpointing,
-		ShutdownGraceMillis:                       DefaultShutdownGraceMillis,
-		MaxLeasesForWorker:                        DefaultMaxLeasesForWorker,
-		MaxLeasesToStealAtOneTime:                 DefaultMaxLeasesToStealAtOneTime,
-		InitialLeaseTableReadCapacity:             DefaultInitialLeaseTableReadCapacity,
+	return &KinesisClientLibConfiguration{
+		ApplicationName:                                  applicationName,
+		KinesisCredentials:                               kinesisCreds,
+		DynamoDBCredentials:                              dynamodbCreds,
+		TableName:                                        applicationName,
+		EnhancedFanOutConsumerName:                       applicationName,
+		StreamName:                                       streamName,
+		RegionName:                                       regionName,
+		WorkerID:                                         workerID,
+		InitialPositionInStream:                          DefaultInitialPositionInStream,
+		InitialPositionInStreamExtended:                  *newInitialPosition(DefaultInitialPositionInStream),
+		FailoverTimeMillis:                               DefaultFailoverTimeMillis,
+		LeaseRefreshPeriodMillis:                         DefaultLeaseRefreshPeriodMillis,
+		MaxRecords:                                       DefaultMaxRecords,
+		IdleTimeBetweenReadsInMillis:                     DefaultIdleTimeBetweenReadsMillis,
+		CallProcessRecordsEvenForEmptyRecordList:         DefaultDontCallProcessRecordsForEmptyRecordList,
+		ParentShardPollIntervalMillis:                    DefaultParentShardPollIntervalMillis,
+		ShardSyncIntervalMillis:                          DefaultShardSyncIntervalMillis,
+		CleanupTerminatedShardsBeforeExpiry:              DefaultCleanupLeasesUponShardsCompletion,
+		TaskBackoffTimeMillis:                            DefaultTaskBackoffTimeMillis,
+		ValidateSequenceNumberBeforeCheckpointing:        DefaultValidateSequenceNumberBeforeCheckpointing,
+		ShutdownGraceMillis:                              DefaultShutdownGraceMillis,
+		MaxLeasesForWorker:                               DefaultMaxLeasesForWorker,
+		MaxLeasesToStealAtOneTime:                        DefaultMaxLeasesToStealAtOneTime,
+		InitialLeaseTableReadCapacity:                    DefaultInitialLeaseTableReadCapacity,
 		InitialLeaseTableWriteCapacity:                   DefaultInitialLeaseTableWriteCapacity,
 		SkipShardSyncAtWorkerInitializationIfLeasesExist: DefaultSkipShardSyncAtStartupIfLeasesExist,
 		EnableLeaseStealing:                              DefaultEnableLeaseStealing,
@@ -167,25 +167,24 @@ func (c *KinesisClientLibConfiguration) WithMaxLeasesForWorker(n int) *KinesisCl
 	return c
 }
 
-/* WithIdleTimeBetweenReadsInMillis
-  Controls how long the KCL will sleep if no records are returned from Kinesis
- 
-  <p>
-  This value is only used when no records are returned; if records are returned, the {@link com.amazonaws.services.kinesis.clientlibrary.lib.worker.ProcessTask} will
-  immediately retrieve the next set of records after the call to
-  {@link com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor#processRecords(ProcessRecordsInput)}
-  has returned. Setting this value to high may result in the KCL being unable to catch up. If you are changing this
-  value it's recommended that you enable {@link #withCallProcessRecordsEvenForEmptyRecordList(boolean)}, and
-  monitor how far behind the records retrieved are by inspecting
-  {@link com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput#getMillisBehindLatest()}, and the
-  <a href=
-  "http://docs.aws.amazon.com/streams/latest/dev/monitoring-with-cloudwatch.html#kinesis-metrics-stream">CloudWatch
-  Metric: GetRecords.MillisBehindLatest</a>
-  </p>
- 
-  @param IdleTimeBetweenReadsInMillis: how long to sleep between GetRecords calls when no records are returned.
-  @return KinesisClientLibConfiguration
- */
+// WithIdleTimeBetweenReadsInMillis
+// Controls how long the KCL will sleep if no records are returned from Kinesis
+//
+// <p>
+// This value is only used when no records are returned; if records are returned, the {@link com.amazonaws.services.kinesis.clientlibrary.lib.worker.ProcessTask} will
+// immediately retrieve the next set of records after the call to
+// {@link com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor#processRecords(ProcessRecordsInput)}
+// has returned. Setting this value to high may result in the KCL being unable to catch up. If you are changing this
+// value it's recommended that you enable {@link #withCallProcessRecordsEvenForEmptyRecordList(boolean)}, and
+// monitor how far behind the records retrieved are by inspecting
+// {@link com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput#getMillisBehindLatest()}, and the
+// <a href=
+// "http://docs.aws.amazon.com/streams/latest/dev/monitoring-with-cloudwatch.html#kinesis-metrics-stream">CloudWatch
+// Metric: GetRecords.MillisBehindLatest</a>
+// </p>
+//
+// @param IdleTimeBetweenReadsInMillis: how long to sleep between GetRecords calls when no records are returned.
+// @return KinesisClientLibConfiguration
 func (c *KinesisClientLibConfiguration) WithIdleTimeBetweenReadsInMillis(idleTimeBetweenReadsInMillis int) *KinesisClientLibConfiguration {
 	checkIsValuePositive("IdleTimeBetweenReadsInMillis", idleTimeBetweenReadsInMillis)
 	c.IdleTimeBetweenReadsInMillis = idleTimeBetweenReadsInMillis

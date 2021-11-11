@@ -61,7 +61,7 @@ type DynamoCheckpoint struct {
 
 	LeaseDuration int
 	svc           *dynamodb.Client
-	kclConfig      *config.KinesisClientLibConfiguration
+	kclConfig     *config.KinesisClientLibConfiguration
 	Retries       int
 	lastLeaseSync time.Time
 }

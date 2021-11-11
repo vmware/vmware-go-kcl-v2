@@ -61,7 +61,7 @@ func generateKinesisRecord(data []byte) types.Record {
 	encryptionType := types.EncryptionTypeNone
 	partitionKey := "1234"
 	sequenceNumber := "21269319989900637946712965403778482371"
-	return types.Record {
+	return types.Record{
 		ApproximateArrivalTimestamp: &currentTime,
 		Data:                        data,
 		EncryptionType:              encryptionType,

@@ -20,7 +20,7 @@ import (
 
 type LeaseStealingTest struct {
 	t       *testing.T
-	config   *TestClusterConfig
+	config  *TestClusterConfig
 	cluster *TestCluster
 	kc      *kinesis.Client
 	dc      *dynamodb.Client
