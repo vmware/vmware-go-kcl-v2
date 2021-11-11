@@ -40,13 +40,13 @@ import (
 )
 
 const (
-	appName      = "appName"
-	streamName   = "kcl-test"
-	regionName   = "us-west-2"
-	workerID     = "test-worker"
-	consumerName = "enhanced-fan-out-consumer"
+	appName         = "appName"
+	streamName      = "kcl-test"
+	regionName      = "us-west-2"
+	workerID        = "test-worker"
+	consumerName    = "enhanced-fan-out-consumer"
 	kinesisEndpoint = "https://kinesis.eu-west-1.amazonaws.com"
-	dynamoEndpoint = "https://dynamodb.eu-west-1.amazonaws.com"
+	dynamoEndpoint  = "https://dynamodb.eu-west-1.amazonaws.com"
 )
 
 const metricsSystem = "cloudwatch"
