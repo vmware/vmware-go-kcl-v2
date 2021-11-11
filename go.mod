@@ -43,7 +43,7 @@ require (
 	github.com/prometheus/procfs v0.7.3 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
-	golang.org/x/sys v0.0.0-20211107104306-e0b2ad06fe42 // indirect
+	golang.org/x/sys v0.0.0-20211111213525-f221eed1c01e // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
