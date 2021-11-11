@@ -1,0 +1,42 @@
+name: vmware-go-kcl-v2
+
+on:
+  push:
+    branches: [ master ]
+    paths-ignore: [ README.md ]
+  pull_request:
+    branches: [ master ]
+    paths-ignore: [ README.md ]
+    
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v2
+
+    - name: Build
+      shell: bash
+      run: |
+        make build
+
+#    - name: Test
+#      shell: bash
+#      run: |
+#        make test
+
+    - name: Format Check
+      shell: bash
+      run: |
+        make format-check
+
+    - name: Lint
+      shell: bash
+      run: |
+        make lint
+
+    - name: Scan
+      shell: bash
+      run: |
+        make scan
