@@ -2,7 +2,7 @@ name: vmware-go-kcl-v2
 
 on:
   push:
-    branches: [ master ]
+    branches: [ master, upgrade/aws-sdk-to-v2 ]
     paths-ignore: [ README.md ]
   pull_request:
     branches: [ master ]
