@@ -23,7 +23,7 @@ function checkfmt() {
     fi
 }
 
-function go_format() {
+function goFormat() {
     echo "go formatting..."
     gofmt -w ./
     echo "done"
@@ -52,7 +52,7 @@ function lintDocker() {
                                                         --verbose
 }
 
-function test() {
+function unitTest() {
   	go list ./... | grep -v /test | \
    	xargs -L 1 -I% bash -c 'echo -e "\n**************** Package: % ****************" && go test % -v -cover -race ./...'
 }
@@ -101,6 +101,16 @@ function scanast() {
     rm -f security.log
 }
 
+function Scan() {
+    gosec -fmt=sarif -out=results.sarif -exclude-dir=internal -exclude-dir=vendor -severity=high ./...
+}
+
+function localScan() {
+    # you can use the vs code plugin https://marketplace.visualstudio.com/items?itemName=MS-SarifVSCode.sarif-viewer
+    # to navigate against the issues
+    gosec -fmt=sarif -out=results.sarif -exclude-dir=internal -exclude-dir=vendor ./...
+}
+
 function usage() {
     echo "check.sh fmt|lint" >&2
     exit 2
@@ -108,10 +118,11 @@ function usage() {
 
 case "$1" in
     fmtcheck) checkfmt ;;
-    format) go_format ;;
+    format) goFormat ;;
     lint) lint ;;
     lintDocker) lintDocker ;;
-    unittest) test ;;
-    scan) scanast ;;
+    unittest) unitTest ;;
+    scan) scan ;;
+    localScan) localScan ;;
     *) usage ;;
 esac

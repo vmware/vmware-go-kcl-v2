@@ -40,6 +40,10 @@ integration-test: ## - execute go test command for integration tests (aws creden
 scan: ## - execute static code analysis
 	@ ./_support/scripts/ci.sh scan
 
+.PHONY: local-scan
+local-scan: ## - execute static code analysis locally
+	@ ./_support/scripts/ci.sh localScan
+
 .PHONY: lint
 lint: ## - runs golangci-lint
 	@ ./_support/scripts/ci.sh lint
