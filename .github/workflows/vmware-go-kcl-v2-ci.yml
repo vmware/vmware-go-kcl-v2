@@ -40,7 +40,7 @@ jobs:
     - name: Lint
       shell: bash
       run: |
-        make lint
+        make lint-docker
 
     - name: Scan
       shell: bash

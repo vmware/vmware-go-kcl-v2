@@ -31,14 +31,25 @@ function go_format() {
 
 function lint() {
   #	golangci-lint run --enable-all -D forbidigo -D gochecknoglobals -D gofumpt -D gofmt -D nlreturn
-    golangci-lint run \
-        --skip-files=_mock.go \
-        --disable=golint \
-        --skip-dirs=test \
-        --fast \
-        --timeout=600s \
-        --verbose \
-        "$(local_go_pkgs)"
+
+  golangci-lint run \
+      --skip-files=_mock.go \
+      --skip-dirs=test \
+      --skip-dirs=internal \
+      --timeout=600s \
+      --verbose
+}
+
+function lintDocker() {
+  lintVersion="1.41.1"
+  lintImage="golangci/golangci-lint:v$lintVersion-alpine"
+
+  docker run --rm -v "${PWD}":/app -w /app "$lintImage" golangci-lint run \
+                                                        --skip-files=_mock.go \
+                                                        --skip-dirs=test \
+                                                        --skip-dirs=internal \
+                                                        --timeout=600s \
+                                                        --verbose
 }
 
 function test() {
@@ -99,6 +110,7 @@ case "$1" in
     fmtcheck) checkfmt ;;
     format) go_format ;;
     lint) lint ;;
+    lintDocker) lintDocker ;;
     unittest) test ;;
     scan) scanast ;;
     *) usage ;;

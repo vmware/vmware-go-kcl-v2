@@ -44,9 +44,9 @@ scan: ## - execute static code analysis
 lint: ## - runs golangci-lint
 	@ ./_support/scripts/ci.sh lint
 
-.PHONY: ci-lint-docker
+.PHONY: lint-docker
 lint-docker: ## - runs golangci-lint with docker container
-	@ docker run --rm -v "$(shell pwd)":/app -w /app ${LINT_IMAGE} golangci-lint run ${LINT_FLAGS}
+	@ ./_support/scripts/ci.sh lintDocker
 
 .PHONY: sonar-scan
 sonar-scan: ## - start sonar qube locally with docker (you will need docker installed in your machine)
