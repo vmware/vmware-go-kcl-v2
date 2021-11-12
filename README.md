@@ -1,5 +1,7 @@
 # vmware-go-kcl-v2
 
+[![vmware-go-kcl-v2](https://github.com/fafg/vmware-go-kcl/actions/workflows/vmware-go-kcl-v2-ci.yml/badge.svg)](https://github.com/fafg/vmware-go-kcl/actions/workflows/vmware-go-kcl-v2-ci.yml)
+
 ## Overview
 
 ## Try it out
