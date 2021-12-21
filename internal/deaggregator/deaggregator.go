@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	"github.com/golang/protobuf/proto"
 
-	rec "github.com/vmware/vmware-go-kcl/internal/records"
+	rec "github.com/vmware/vmware-go-kcl-v2/internal/records"
 )
 
 // KplMagicHeader Magic File Header for a KPL Aggregated Record

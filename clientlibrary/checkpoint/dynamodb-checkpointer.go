@@ -42,9 +42,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
-	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
-	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
-	"github.com/vmware/vmware-go-kcl/logger"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
+	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
+	"github.com/vmware/vmware-go-kcl-v2/logger"
 )
 
 const (

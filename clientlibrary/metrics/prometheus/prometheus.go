@@ -35,7 +35,7 @@ import (
 	prom "github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/vmware/vmware-go-kcl/logger"
+	"github.com/vmware/vmware-go-kcl-v2/logger"
 )
 
 // MonitoringService publishes kcl metrics to Prometheus.

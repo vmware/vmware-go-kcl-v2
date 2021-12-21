@@ -33,6 +33,7 @@
  * express or implied. See the License for the specific language governing
  * permissions and limitations under the License.
  */
+
 package config
 
 import (
@@ -41,9 +42,9 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/credentials"
 
-	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
-	"github.com/vmware/vmware-go-kcl/clientlibrary/utils"
-	"github.com/vmware/vmware-go-kcl/logger"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/metrics"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/utils"
+	"github.com/vmware/vmware-go-kcl-v2/logger"
 )
 
 // NewKinesisClientLibConfig creates a default KinesisClientLibConfiguration based on the required fields.

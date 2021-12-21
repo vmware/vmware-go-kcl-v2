@@ -13,8 +13,8 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	deagg "github.com/vmware/vmware-go-kcl/internal/deaggregator"
-	rec "github.com/vmware/vmware-go-kcl/internal/records"
+	deagg "github.com/vmware/vmware-go-kcl-v2/internal/deaggregator"
+	rec "github.com/vmware/vmware-go-kcl-v2/internal/records"
 )
 
 // Generate an aggregate record in the correct AWS-specified format

@@ -43,11 +43,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 
-	chk "github.com/vmware/vmware-go-kcl/clientlibrary/checkpoint"
-	"github.com/vmware/vmware-go-kcl/clientlibrary/config"
-	kcl "github.com/vmware/vmware-go-kcl/clientlibrary/interfaces"
-	"github.com/vmware/vmware-go-kcl/clientlibrary/metrics"
-	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
+	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
+	kcl "github.com/vmware/vmware-go-kcl-v2/clientlibrary/interfaces"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/metrics"
+	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 )
 
 //Worker is the high level class that Kinesis applications use to start processing data. It initializes and oversees

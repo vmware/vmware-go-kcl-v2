@@ -33,7 +33,7 @@ import (
 	"errors"
 	"fmt"
 
-	par "github.com/vmware/vmware-go-kcl/clientlibrary/partition"
+	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 )
 
 const (
