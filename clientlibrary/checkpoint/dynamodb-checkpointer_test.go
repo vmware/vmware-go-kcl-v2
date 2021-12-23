@@ -47,14 +47,14 @@ func TestDoesTableExist(t *testing.T) {
 	svc := &mockDynamoDB{client: nil, tableExist: true, item: map[string]types.AttributeValue{}}
 	checkpoint := &DynamoCheckpoint{
 		TableName: "TableName",
-		svc:       svc.client,
+		svc:       svc,
 	}
 	if !checkpoint.doesTableExist() {
 		t.Error("Table exists but returned false")
 	}
 
 	svc = &mockDynamoDB{tableExist: false}
-	checkpoint.svc = svc.client
+	checkpoint.svc = svc
 	if checkpoint.doesTableExist() {
 		t.Error("Table does not exist but returned true")
 	}
@@ -69,7 +69,7 @@ func TestGetLeaseNotAcquired(t *testing.T) {
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:         "0001",
@@ -100,7 +100,7 @@ func TestGetLeaseAquired(t *testing.T) {
 		WithShardSyncIntervalMillis(5000).
 		WithFailoverTimeMillis(300000)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	marshalledCheckpoint := map[string]types.AttributeValue{
 		LeaseKeyKey: &types.AttributeValueMemberS{
@@ -175,7 +175,7 @@ func TestGetLeaseShardClaimed(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
@@ -222,7 +222,7 @@ func TestGetLeaseClaimRequestExpiredOwner(t *testing.T) {
 		},
 	}
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
@@ -259,7 +259,7 @@ func TestGetLeaseClaimRequestExpiredClaimer(t *testing.T) {
 		},
 	}
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	err := checkpoint.GetLease(&par.ShardStatus{
 		ID:           "0001",
@@ -294,7 +294,7 @@ func TestFetchCheckpointWithStealing(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 
 	status := &par.ShardStatus{
@@ -320,7 +320,7 @@ func TestGetLeaseConditional(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 	marshalledCheckpoint := map[string]types.AttributeValue{
 		LeaseKeyKey: &types.AttributeValueMemberS{
@@ -369,7 +369,7 @@ func TestListActiveWorkers(t *testing.T) {
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	err := checkpoint.Init()
 	if err != nil {
 		t.Errorf("Checkpoint initialization failed: %+v", err)
@@ -407,7 +407,7 @@ func TestListActiveWorkersErrShardNotAssigned(t *testing.T) {
 	kclConfig := cfg.NewKinesisClientLibConfig("appName", "test", "us-west-2", "abc").
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	err := checkpoint.Init()
 	if err != nil {
 		t.Errorf("Checkpoint initialization failed: %+v", err)
@@ -433,7 +433,7 @@ func TestClaimShard(t *testing.T) {
 		WithFailoverTimeMillis(300000).
 		WithLeaseStealing(true)
 
-	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc.client)
+	checkpoint := NewDynamoCheckpoint(kclConfig).WithDynamoDB(svc)
 	_ = checkpoint.Init()
 
 	marshalledCheckpoint := map[string]types.AttributeValue{
@@ -484,80 +484,4 @@ func TestClaimShard(t *testing.T) {
 	assert.Equal(t, shard.AssignedTo, status.AssignedTo)
 	assert.Equal(t, shard.Checkpoint, status.Checkpoint)
 	assert.Equal(t, shard.ParentShardId, status.ParentShardId)
-}
-
-type mockDynamoDB struct {
-	client                    *dynamodb.Client
-	tableExist                bool
-	item                      map[string]types.AttributeValue
-	conditionalExpression     string
-	expressionAttributeValues map[string]types.AttributeValue
-}
-
-func (m *mockDynamoDB) ScanPages(_ *dynamodb.ScanInput, _ func(*dynamodb.ScanOutput, bool) bool) error {
-	return nil
-}
-
-func (m *mockDynamoDB) DescribeTable(_ *dynamodb.DescribeTableInput) (*dynamodb.DescribeTableOutput, error) {
-	if !m.tableExist {
-		return &dynamodb.DescribeTableOutput{}, &types.ResourceNotFoundException{Message: aws.String("doesNotExist")}
-	}
-
-	return &dynamodb.DescribeTableOutput{}, nil
-}
-
-func (m *mockDynamoDB) PutItem(input *dynamodb.PutItemInput) (*dynamodb.PutItemOutput, error) {
-	item := input.Item
-
-	if shardID, ok := item[LeaseKeyKey]; ok {
-		m.item[LeaseKeyKey] = shardID
-	}
-
-	if owner, ok := item[LeaseOwnerKey]; ok {
-		m.item[LeaseOwnerKey] = owner
-	}
-
-	if timeout, ok := item[LeaseTimeoutKey]; ok {
-		m.item[LeaseTimeoutKey] = timeout
-	}
-
-	if checkpoint, ok := item[SequenceNumberKey]; ok {
-		m.item[SequenceNumberKey] = checkpoint
-	}
-
-	if parent, ok := item[ParentShardIdKey]; ok {
-		m.item[ParentShardIdKey] = parent
-	}
-
-	if claimRequest, ok := item[ClaimRequestKey]; ok {
-		m.item[ClaimRequestKey] = claimRequest
-	}
-
-	if input.ConditionExpression != nil {
-		m.conditionalExpression = *input.ConditionExpression
-	}
-
-	m.expressionAttributeValues = input.ExpressionAttributeValues
-
-	return nil, nil
-}
-
-func (m *mockDynamoDB) GetItem(_ *dynamodb.GetItemInput) (*dynamodb.GetItemOutput, error) {
-	return &dynamodb.GetItemOutput{
-		Item: m.item,
-	}, nil
-}
-
-func (m *mockDynamoDB) UpdateItem(input *dynamodb.UpdateItemInput) (*dynamodb.UpdateItemOutput, error) {
-	exp := input.UpdateExpression
-
-	if aws.ToString(exp) == "remove "+LeaseOwnerKey {
-		delete(m.item, LeaseOwnerKey)
-	}
-
-	return nil, nil
-}
-
-func (m *mockDynamoDB) CreateTable(_ *dynamodb.CreateTableInput) (*dynamodb.CreateTableOutput, error) {
-	return &dynamodb.CreateTableOutput{}, nil
 }

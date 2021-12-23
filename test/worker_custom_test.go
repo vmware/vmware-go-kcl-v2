@@ -20,6 +20,7 @@ package test
 
 import (
 	"context"
+	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
 	"os"
 	"sync"
 	"testing"
@@ -30,7 +31,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 
-	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
 	cfg "github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
 	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 	wk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/worker"

@@ -38,7 +38,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 
@@ -60,7 +59,7 @@ type DynamoCheckpoint struct {
 	leaseTableWriteCapacity int64
 
 	LeaseDuration int
-	svc           *dynamodb.Client
+	svc           DynamoDBAPI
 	kclConfig     *config.KinesisClientLibConfiguration
 	Retries       int
 	lastLeaseSync time.Time
@@ -81,7 +80,7 @@ func NewDynamoCheckpoint(kclConfig *config.KinesisClientLibConfiguration) *Dynam
 }
 
 // WithDynamoDB is used to provide DynamoDB service
-func (checkpointer *DynamoCheckpoint) WithDynamoDB(svc *dynamodb.Client) *DynamoCheckpoint {
+func (checkpointer *DynamoCheckpoint) WithDynamoDB(svc DynamoDBAPI) *DynamoCheckpoint {
 	checkpointer.svc = svc
 	return checkpointer
 }
@@ -91,23 +90,23 @@ func (checkpointer *DynamoCheckpoint) Init() error {
 	checkpointer.log.Infof("Creating DynamoDB session")
 
 	if checkpointer.svc == nil {
-		resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           checkpointer.kclConfig.DynamoDBEndpoint,
-				SigningRegion: checkpointer.kclConfig.RegionName,
-			}, nil
+		er := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+			if service == dynamodb.ServiceID && len(checkpointer.kclConfig.DynamoDBEndpoint) > 0 {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           checkpointer.kclConfig.DynamoDBEndpoint,
+					SigningRegion: checkpointer.kclConfig.RegionName,
+				}, nil
+			}
+			// returning EndpointNotFoundError will allow the service to fallback to it's default resolution
+			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		})
 
 		cfg, err := awsConfig.LoadDefaultConfig(
 			context.TODO(),
 			awsConfig.WithRegion(checkpointer.kclConfig.RegionName),
-			awsConfig.WithCredentialsProvider(
-				credentials.NewStaticCredentialsProvider(
-					checkpointer.kclConfig.DynamoDBCredentials.Value.AccessKeyID,
-					checkpointer.kclConfig.DynamoDBCredentials.Value.SecretAccessKey,
-					checkpointer.kclConfig.DynamoDBCredentials.Value.SessionToken)),
-			awsConfig.WithEndpointResolver(resolver),
+			awsConfig.WithCredentialsProvider(checkpointer.kclConfig.DynamoDBCredentials),
+			awsConfig.WithEndpointResolver(er),
 			awsConfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 			}),

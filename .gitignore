@@ -1,11 +1,6 @@
-# Ignore everything in this directory
-*
-# Except this file
-!.gitignore
-=======
-/src/gen
-/src/vendor
-!/src/vendor/manifest
+/gen
+/vendor
+!/vendor/manifest
 /bin
 /pkg
 /tmp
@@ -22,5 +17,3 @@
 filenames
 
 .DS_Store
-.scannerwork/
-*.sarif

@@ -1,5 +1,6 @@
 # VMWare Go KCL v2
 
+![technology Go](https://img.shields.io/badge/technology-go-blue.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vmware-go-kcl)](https://goreportcard.com/report/github.com/vmware/vmware-go-kcl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![vmware-go-kcl-v2](https://github.com/fafg/vmware-go-kcl/actions/workflows/vmware-go-kcl-v2-ci.yml/badge.svg)](https://github.com/fafg/vmware-go-kcl/actions/workflows/vmware-go-kcl-v2-ci.yml)

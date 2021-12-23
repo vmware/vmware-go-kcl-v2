@@ -1,9 +1,9 @@
 package test
 
 import (
+	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
 	"testing"
 
-	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
 	cfg "github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
 	wk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/worker"
 	"github.com/vmware/vmware-go-kcl-v2/logger"
