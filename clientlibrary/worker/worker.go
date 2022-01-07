@@ -159,7 +159,7 @@ func (w *Worker) initialize() error {
 		// create session for Kinesis
 		log.Infof("Creating Kinesis client")
 
-		resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+        resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			return aws.Endpoint{
 				PartitionID:   "aws",
 				URL:           w.kclConfig.KinesisEndpoint,
@@ -171,7 +171,7 @@ func (w *Worker) initialize() error {
 			context.TODO(),
 			awsConfig.WithRegion(w.regionName),
 			awsConfig.WithCredentialsProvider(w.kclConfig.KinesisCredentials),
-			awsConfig.WithEndpointResolver(resolver),
+			awsConfig.WithEndpointResolverWithOptions(resolver),
 			awsConfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 			}),

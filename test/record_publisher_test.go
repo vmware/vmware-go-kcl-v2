@@ -45,7 +45,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds aws.Crede
 	// create session for Kinesis
 	t.Logf("Creating Kinesis client")
 
-	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+	resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:   "aws",
 			URL:           endpoint,
@@ -57,7 +57,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds aws.Crede
 		context.TODO(),
 		awsConfig.WithRegion(regionName),
 		awsConfig.WithCredentialsProvider(creds),
-		awsConfig.WithEndpointResolver(resolver),
+		awsConfig.WithEndpointResolverWithOptions(resolver),
 		awsConfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 		}),
@@ -73,7 +73,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds aws.Crede
 
 // NewDynamoDBClient to create a Kinesis Client.
 func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds aws.CredentialsProvider) *dynamodb.Client {
-	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+	resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:   "aws",
 			URL:           endpoint,
@@ -85,7 +85,7 @@ func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds aws.Cred
 		context.TODO(),
 		awsConfig.WithRegion(regionName),
 		awsConfig.WithCredentialsProvider(creds),
-		awsConfig.WithEndpointResolver(resolver),
+		awsConfig.WithEndpointResolverWithOptions(resolver),
 		awsConfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 		}),
