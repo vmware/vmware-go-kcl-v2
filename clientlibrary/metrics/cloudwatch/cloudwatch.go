@@ -35,8 +35,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-
 	cwatch "github.com/aws/aws-sdk-go-v2/service/cloudwatch"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 
@@ -51,7 +49,7 @@ type MonitoringService struct {
 	streamName  string
 	workerID    string
 	region      string
-	credentials *credentials.StaticCredentialsProvider
+	credentials aws.CredentialsProvider
 	logger      logger.Logger
 
 	// control how often to publish to CloudWatch
@@ -76,13 +74,13 @@ type cloudWatchMetrics struct {
 }
 
 // NewMonitoringService returns a Monitoring service publishing metrics to CloudWatch.
-func NewMonitoringService(region string, creds *credentials.StaticCredentialsProvider) *MonitoringService {
+func NewMonitoringService(region string, creds aws.CredentialsProvider) *MonitoringService {
 	return NewMonitoringServiceWithOptions(region, creds, logger.GetDefaultLogger(), DefaultCloudwatchMetricsBufferDuration)
 }
 
 // NewMonitoringServiceWithOptions returns a Monitoring service publishing metrics to
 // CloudWatch with the provided credentials, buffering duration and logger.
-func NewMonitoringServiceWithOptions(region string, creds *credentials.StaticCredentialsProvider, logger logger.Logger, bufferDur time.Duration) *MonitoringService {
+func NewMonitoringServiceWithOptions(region string, creds aws.CredentialsProvider, logger logger.Logger, bufferDur time.Duration) *MonitoringService {
 	return &MonitoringService{
 		region:         region,
 		credentials:    creds,

@@ -40,7 +40,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/metrics"
 	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/utils"
@@ -55,13 +55,13 @@ func NewKinesisClientLibConfig(applicationName, streamName, regionName, workerID
 
 // NewKinesisClientLibConfigWithCredential creates a default KinesisClientLibConfiguration based on the required fields and unique credentials.
 func NewKinesisClientLibConfigWithCredential(applicationName, streamName, regionName, workerID string,
-	creds *credentials.StaticCredentialsProvider) *KinesisClientLibConfiguration {
+	creds aws.CredentialsProvider) *KinesisClientLibConfiguration {
 	return NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regionName, workerID, creds, creds)
 }
 
 // NewKinesisClientLibConfigWithCredentials creates a default KinesisClientLibConfiguration based on the required fields and specific credentials for each service.
 func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regionName, workerID string,
-	kinesisCreds, dynamodbCreds *credentials.StaticCredentialsProvider) *KinesisClientLibConfiguration {
+	kinesisCreds, dynamodbCreds aws.CredentialsProvider) *KinesisClientLibConfiguration {
 	checkIsValueNotEmpty("ApplicationName", applicationName)
 	checkIsValueNotEmpty("StreamName", streamName)
 	checkIsValueNotEmpty("RegionName", regionName)

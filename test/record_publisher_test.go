@@ -29,7 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
@@ -42,7 +41,7 @@ import (
 const specstr = `{"name":"kube-qQyhk","networking":{"containerNetworkCidr":"10.2.0.0/16"},"orgName":"BVT-Org-cLQch","projectName":"project-tDSJd","serviceLevel":"DEVELOPER","size":{"count":1},"version":"1.8.1-4"}`
 
 // NewKinesisClient to create a Kinesis Client.
-func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credentials.StaticCredentialsProvider) *kinesis.Client {
+func NewKinesisClient(t *testing.T, regionName, endpoint string, creds aws.CredentialsProvider) *kinesis.Client {
 	// create session for Kinesis
 	t.Logf("Creating Kinesis client")
 
@@ -57,11 +56,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credenti
 	cfg, err := awsConfig.LoadDefaultConfig(
 		context.TODO(),
 		awsConfig.WithRegion(regionName),
-		awsConfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(
-				creds.Value.AccessKeyID,
-				creds.Value.SecretAccessKey,
-				creds.Value.SessionToken)),
+		awsConfig.WithCredentialsProvider(creds),
 		awsConfig.WithEndpointResolver(resolver),
 		awsConfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
@@ -77,7 +72,7 @@ func NewKinesisClient(t *testing.T, regionName, endpoint string, creds *credenti
 }
 
 // NewDynamoDBClient to create a Kinesis Client.
-func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds *credentials.StaticCredentialsProvider) *dynamodb.Client {
+func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds aws.CredentialsProvider) *dynamodb.Client {
 	resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
 		return aws.Endpoint{
 			PartitionID:   "aws",
@@ -89,11 +84,7 @@ func NewDynamoDBClient(t *testing.T, regionName, endpoint string, creds *credent
 	cfg, err := awsConfig.LoadDefaultConfig(
 		context.TODO(),
 		awsConfig.WithRegion(regionName),
-		awsConfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(
-				creds.Value.AccessKeyID,
-				creds.Value.SecretAccessKey,
-				creds.Value.SessionToken)),
+		awsConfig.WithCredentialsProvider(creds),
 		awsConfig.WithEndpointResolver(resolver),
 		awsConfig.WithRetryer(func() aws.Retryer {
 			return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)

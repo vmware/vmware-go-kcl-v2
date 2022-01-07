@@ -40,7 +40,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 
 	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
@@ -171,11 +170,7 @@ func (w *Worker) initialize() error {
 		cfg, err := awsConfig.LoadDefaultConfig(
 			context.TODO(),
 			awsConfig.WithRegion(w.regionName),
-			awsConfig.WithCredentialsProvider(
-				credentials.NewStaticCredentialsProvider(
-					w.kclConfig.KinesisCredentials.Value.AccessKeyID,
-					w.kclConfig.KinesisCredentials.Value.SecretAccessKey,
-					w.kclConfig.KinesisCredentials.Value.SessionToken)),
+			awsConfig.WithCredentialsProvider(w.kclConfig.KinesisCredentials),
 			awsConfig.WithEndpointResolver(resolver),
 			awsConfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
