@@ -90,7 +90,7 @@ func (checkpointer *DynamoCheckpoint) Init() error {
 	checkpointer.log.Infof("Creating DynamoDB session")
 
 	if checkpointer.svc == nil {
-			resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			if service == dynamodb.ServiceID && len(checkpointer.kclConfig.DynamoDBEndpoint) > 0 {
 				return aws.Endpoint{
 					PartitionID:   "aws",

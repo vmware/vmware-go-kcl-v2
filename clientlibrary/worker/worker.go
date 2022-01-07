@@ -159,7 +159,7 @@ func (w *Worker) initialize() error {
 		// create session for Kinesis
 		log.Infof("Creating Kinesis client")
 
-        resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			return aws.Endpoint{
 				PartitionID:   "aws",
 				URL:           w.kclConfig.KinesisEndpoint,
