@@ -40,7 +40,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/retry"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 
 	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
@@ -160,7 +159,7 @@ func (w *Worker) initialize() error {
 		// create session for Kinesis
 		log.Infof("Creating Kinesis client")
 
-		resolver := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			return aws.Endpoint{
 				PartitionID:   "aws",
 				URL:           w.kclConfig.KinesisEndpoint,
@@ -171,12 +170,8 @@ func (w *Worker) initialize() error {
 		cfg, err := awsConfig.LoadDefaultConfig(
 			context.TODO(),
 			awsConfig.WithRegion(w.regionName),
-			awsConfig.WithCredentialsProvider(
-				credentials.NewStaticCredentialsProvider(
-					w.kclConfig.KinesisCredentials.Value.AccessKeyID,
-					w.kclConfig.KinesisCredentials.Value.SecretAccessKey,
-					w.kclConfig.KinesisCredentials.Value.SessionToken)),
-			awsConfig.WithEndpointResolver(resolver),
+			awsConfig.WithCredentialsProvider(w.kclConfig.KinesisCredentials),
+			awsConfig.WithEndpointResolverWithOptions(resolver),
 			awsConfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 			}),

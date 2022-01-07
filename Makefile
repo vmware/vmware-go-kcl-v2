@@ -22,7 +22,7 @@ build: build-common ## - build a debug binary to the current platform (windows, 
 
 .PHONY: format-check
 format-check: ## - check files format using gofmt
-	@ ./_support/scripts/ci.sh fmtcheck
+	@ ./_support/scripts/ci.sh fmtCheck
 
 .PHONY: format-check
 format: ## - apply golang file format using gofmt
@@ -30,7 +30,7 @@ format: ## - apply golang file format using gofmt
 
 .PHONY: test
 test: build-common ## - execute go test command for unit and mocked tests
-	@ ./_support/scripts/ci.sh unittest
+	@ ./_support/scripts/ci.sh unitTest
 
 .PHONY: integration-test
 integration-test: ## - execute go test command for integration tests (aws credentials needed)

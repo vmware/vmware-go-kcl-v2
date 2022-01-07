@@ -101,7 +101,7 @@ function scanast() {
     rm -f security.log
 }
 
-function Scan() {
+function scan() {
     gosec -fmt=sarif -out=results.sarif -exclude-dir=internal -exclude-dir=vendor -severity=high ./...
 }
 
@@ -117,11 +117,11 @@ function usage() {
 }
 
 case "$1" in
-    fmtcheck) checkfmt ;;
+    fmtCheck) checkfmt ;;
     format) goFormat ;;
     lint) lint ;;
     lintDocker) lintDocker ;;
-    unittest) unitTest ;;
+    unitTest) unitTest ;;
     scan) scan ;;
     localScan) localScan ;;
     *) usage ;;

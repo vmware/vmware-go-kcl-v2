@@ -90,7 +90,7 @@ func (checkpointer *DynamoCheckpoint) Init() error {
 	checkpointer.log.Infof("Creating DynamoDB session")
 
 	if checkpointer.svc == nil {
-		er := aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 			if service == dynamodb.ServiceID && len(checkpointer.kclConfig.DynamoDBEndpoint) > 0 {
 				return aws.Endpoint{
 					PartitionID:   "aws",
@@ -106,7 +106,7 @@ func (checkpointer *DynamoCheckpoint) Init() error {
 			context.TODO(),
 			awsConfig.WithRegion(checkpointer.kclConfig.RegionName),
 			awsConfig.WithCredentialsProvider(checkpointer.kclConfig.DynamoDBCredentials),
-			awsConfig.WithEndpointResolver(er),
+			awsConfig.WithEndpointResolverWithOptions(resolver),
 			awsConfig.WithRetryer(func() aws.Retryer {
 				return retry.AddWithMaxBackoffDelay(retry.NewStandard(), retry.DefaultMaxBackoff)
 			}),
