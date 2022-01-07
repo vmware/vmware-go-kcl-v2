@@ -3,7 +3,7 @@
 ![technology Go](https://img.shields.io/badge/technology-go-blue.svg)
 [![Go Report Card](https://goreportcard.com/badge/github.com/vmware/vmware-go-kcl-v2)](https://goreportcard.com/report/github.com/vmware/vmware-go-kcl-v2)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![vmware-go-kcl-v2](https://github.com/fafg/vmware-go-kcl-v2/actions/workflows/vmware-go-kcl-v2-ci.yml/badge.svg)](https://github.com/fafg/vmware-go-kcl-v2/actions/workflows/vmware-go-kcl-v2-ci.yml)
+[![vmware-go-kcl-v2](https://github.com/vmware/vmware-go-kcl-v2/actions/workflows/vmware-go-kcl-v2-ci.yml/badge.svg)](https://github.com/vmware/vmware-go-kcl-v2/actions/workflows/vmware-go-kcl-v2-ci.yml)
 
 ## Overview
 
