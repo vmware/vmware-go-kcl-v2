@@ -32,10 +32,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
+	rec "github.com/awslabs/kinesis-aggregation/go/v2/records"
 	"github.com/golang/protobuf/proto"
 
 	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/utils"
-	rec "github.com/vmware/vmware-go-kcl-v2/internal/records"
 )
 
 const specstr = `{"name":"kube-qQyhk","networking":{"containerNetworkCidr":"10.2.0.0/16"},"orgName":"BVT-Org-cLQch","projectName":"project-tDSJd","serviceLevel":"DEVELOPER","size":{"count":1},"version":"1.8.1-4"}`

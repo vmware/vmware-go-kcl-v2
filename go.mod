@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.13.0
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.11.0
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.11.0
+	github.com/awslabs/kinesis-aggregation/go/v2 v2.0.0-20211222152315-953b66f67407
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
 	github.com/prometheus/client_golang v1.11.0
