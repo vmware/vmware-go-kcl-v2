@@ -272,6 +272,14 @@ func (w *Worker) eventLoop() {
 		rnd, _ := rand.Int(rand.Reader, big.NewInt(int64(w.kclConfig.ShardSyncIntervalMillis)))
 		shardSyncSleep := w.kclConfig.ShardSyncIntervalMillis/2 + int(rnd.Int64())
 
+		select {
+		case <-*w.stop:
+			log.Infof("Shutting down...")
+			return
+		case <-time.After(time.Duration(shardSyncSleep) * time.Millisecond):
+			log.Debugf("Waited %d ms to sync shards...", shardSyncSleep)
+		}
+
 		err := w.syncShard()
 		if err != nil {
 			log.Errorf("Error syncing shards: %+v, Retrying in %d ms...", err, shardSyncSleep)
@@ -362,14 +370,6 @@ func (w *Worker) eventLoop() {
 			if err != nil {
 				log.Warnf("Error in rebalance: %+v", err)
 			}
-		}
-
-		select {
-		case <-*w.stop:
-			log.Infof("Shutting down...")
-			return
-		case <-time.After(time.Duration(shardSyncSleep) * time.Millisecond):
-			log.Debugf("Waited %d ms to sync shards...", shardSyncSleep)
 		}
 	}
 }
