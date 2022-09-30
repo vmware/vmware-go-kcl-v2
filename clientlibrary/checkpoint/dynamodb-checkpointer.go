@@ -441,6 +441,11 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 	}
 
 	scanOutput, err := checkpointer.svc.Scan(context.TODO(), input)
+	if err != nil {
+		log.Debugf("Error performing SyncLeases. Error: %+v ", err)
+		return err
+	}
+
 	results := scanOutput.Items
 	for _, result := range results {
 		shardId, foundShardId := result[LeaseKeyKey]
@@ -456,10 +461,6 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 		}
 	}
 
-	if err != nil {
-		log.Debugf("Error performing SyncLeases. Error: %+v ", err)
-		return err
-	}
 	log.Debugf("Lease sync completed. Next lease sync will occur in %s", time.Duration(checkpointer.kclConfig.LeaseSyncingTimeIntervalMillis)*time.Millisecond)
 	return nil
 }
