@@ -160,11 +160,15 @@ func (w *Worker) initialize() error {
 		log.Infof("Creating Kinesis client")
 
 		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           w.kclConfig.KinesisEndpoint,
-				SigningRegion: w.regionName,
-			}, nil
+			if service == kinesis.ServiceID && len(w.kclConfig.KinesisEndpoint) > 0 {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           w.kclConfig.KinesisEndpoint,
+					SigningRegion: w.regionName,
+				}, nil
+			}
+			// returning EndpointNotFoundError will allow the service to fallback to it's default resolution
+			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		})
 
 		cfg, err := awsConfig.LoadDefaultConfig(
