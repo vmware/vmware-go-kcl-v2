@@ -13,9 +13,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/stretchr/testify/assert"
 
-	chk "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/checkpoint"
-	cfg "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/config"
-	wk "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/worker"
+	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
+	cfg "github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
+	wk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/worker"
 )
 
 type LeaseStealingTest struct {

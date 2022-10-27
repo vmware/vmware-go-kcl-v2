@@ -39,8 +39,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/stretchr/testify/assert"
 
-	cfg "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/config"
-	par "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/partition"
+	cfg "github.com/vmware/vmware-go-kcl-v2/clientlibrary/config"
+	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 )
 
 func TestDoesTableExist(t *testing.T) {

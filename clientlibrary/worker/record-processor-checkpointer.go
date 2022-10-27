@@ -23,9 +23,9 @@ package worker
 import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 
-	chk "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/checkpoint"
-	kcl "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/interfaces"
-	par "github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/partition"
+	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
+	kcl "github.com/vmware/vmware-go-kcl-v2/clientlibrary/interfaces"
+	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 )
 
 type (
