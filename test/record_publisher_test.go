@@ -35,7 +35,7 @@ import (
 	rec "github.com/awslabs/kinesis-aggregation/go/v2/records"
 	"github.com/golang/protobuf/proto"
 
-	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/utils"
+	"github.com/magiusdarrigo/vmware-go-kcl-v2/clientlibrary/utils"
 )
 
 const specstr = `{"name":"kube-qQyhk","networking":{"containerNetworkCidr":"10.2.0.0/16"},"orgName":"BVT-Org-cLQch","projectName":"project-tDSJd","serviceLevel":"DEVELOPER","size":{"count":1},"version":"1.8.1-4"}`

@@ -23,7 +23,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/vmware/vmware-go-kcl-v2/logger"
+	"github.com/magiusdarrigo/vmware-go-kcl-v2/logger"
 )
 
 func TestConfig(t *testing.T) {
