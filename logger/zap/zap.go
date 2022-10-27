@@ -24,7 +24,7 @@ package zap
 import (
 	"os"
 
-	"github.com/vmware/vmware-go-kcl-v2/logger"
+	"github.com/magiusdarrigo/vmware-go-kcl-v2/logger"
 	uzap "go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -44,7 +44,6 @@ type ZapLogger struct {
 //
 // Base zap logger can be convert to SugaredLogger by calling to add a wrapper:
 // sugaredLogger := log.Sugar()
-//
 func NewZapLogger(logger *uzap.SugaredLogger) logger.Logger {
 	return &ZapLogger{
 		sugaredLogger: logger,
