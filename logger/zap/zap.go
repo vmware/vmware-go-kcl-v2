@@ -44,7 +44,6 @@ type ZapLogger struct {
 //
 // Base zap logger can be convert to SugaredLogger by calling to add a wrapper:
 // sugaredLogger := log.Sugar()
-//
 func NewZapLogger(logger *uzap.SugaredLogger) logger.Logger {
 	return &ZapLogger{
 		sugaredLogger: logger,

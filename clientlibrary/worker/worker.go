@@ -20,7 +20,7 @@
 // Package worker
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
-// Copyright 2018 Patrick robinson
+// Copyright 2018 Patrick robinson.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
@@ -49,9 +49,9 @@ import (
 	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
 )
 
-//Worker is the high level class that Kinesis applications use to start processing data. It initializes and oversees
-//different components (e.g. syncing shard and lease information, tracking shard assignments, and processing data from
-//the shards).
+// Worker is the high level class that Kinesis applications use to start processing data. It initializes and oversees
+// different components (e.g. syncing shard and lease information, tracking shard assignments, and processing data from
+// the shards).
 type Worker struct {
 	streamName  string
 	regionName  string
