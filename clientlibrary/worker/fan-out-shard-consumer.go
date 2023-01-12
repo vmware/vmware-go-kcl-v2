@@ -103,6 +103,8 @@ func (sc *FanOutShardConsumer) getRecords() error {
 				return err
 			}
 			refreshLeaseTimer = time.After(time.Until(sc.shard.LeaseTimeout.Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)))
+			// log metric for renewed lease for worker
+			sc.mService.LeaseRenewed(sc.shard.ID)
 		case event, ok := <-shardSub.GetStream().Events():
 			if !ok {
 				// need to resubscribe to shard

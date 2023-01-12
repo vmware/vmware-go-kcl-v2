@@ -122,6 +122,8 @@ func (sc *PollingShardConsumer) getRecords() error {
 					sc.shard.ID, sc.consumerID, err)
 				return err
 			}
+			// log metric for renewed lease for worker
+			sc.mService.LeaseRenewed(sc.shard.ID)
 		}
 
 		getRecordsStartTime := time.Now()
