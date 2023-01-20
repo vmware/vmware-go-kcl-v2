@@ -51,7 +51,7 @@ type commonShardConsumer struct {
 }
 
 // Cleanup the internal lease cache
-func (sc *commonShardConsumer) releaseLease() {
+func (sc *commonShardConsumer) releaseLease(shard string) {
 	log := sc.kclConfig.Logger
 	log.Infof("Release lease for shard %s", sc.shard.ID)
 	sc.shard.SetLeaseOwner("")
@@ -63,6 +63,7 @@ func (sc *commonShardConsumer) releaseLease() {
 	}
 
 	// reporting lease lose metrics
+	sc.mService.DeleteMetricMillisBehindLatest(shard)
 	sc.mService.LeaseLost(sc.shard.ID)
 }
 

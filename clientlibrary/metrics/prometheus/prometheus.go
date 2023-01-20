@@ -147,6 +147,10 @@ func (p *MonitoringService) MillisBehindLatest(shard string, millSeconds float64
 	p.behindLatestMillis.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Set(millSeconds)
 }
 
+func (p *MonitoringService) DeleteMetricMillisBehindLatest(shard string) {
+	p.behindLatestMillis.Delete(prom.Labels{"shard": shard, "kinesisStream": p.streamName})
+}
+
 func (p *MonitoringService) LeaseGained(shard string) {
 	p.leasesHeld.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName, "workerID": p.workerID}).Inc()
 }
