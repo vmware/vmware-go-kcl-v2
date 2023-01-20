@@ -46,7 +46,7 @@ type FanOutShardConsumer struct {
 // getRecords subscribes to a shard and reads events from it.
 // Precondition: it currently has the lease on the shard.
 func (sc *FanOutShardConsumer) getRecords() error {
-	defer sc.releaseLease()
+	defer sc.releaseLease(sc.shard.ID)
 
 	log := sc.kclConfig.Logger
 

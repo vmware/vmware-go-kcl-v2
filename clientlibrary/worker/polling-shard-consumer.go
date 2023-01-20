@@ -79,7 +79,7 @@ func (sc *PollingShardConsumer) getShardIterator() (*string, error) {
 // getRecords continuously poll one shard for data record
 // Precondition: it currently has the lease on the shard.
 func (sc *PollingShardConsumer) getRecords() error {
-	defer sc.releaseLease()
+	defer sc.releaseLease(sc.shard.ID)
 
 	log := sc.kclConfig.Logger
 

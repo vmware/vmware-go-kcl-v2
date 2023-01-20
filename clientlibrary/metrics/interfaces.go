@@ -35,6 +35,7 @@ type MonitoringService interface {
 	IncrRecordsProcessed(shard string, count int)
 	IncrBytesProcessed(shard string, count int64)
 	MillisBehindLatest(shard string, milliSeconds float64)
+	DeleteMetricMillisBehindLatest(shard string)
 	LeaseGained(shard string)
 	LeaseLost(shard string)
 	LeaseRenewed(shard string)
@@ -53,6 +54,7 @@ func (NoopMonitoringService) Shutdown()                 {}
 func (NoopMonitoringService) IncrRecordsProcessed(_ string, _ int)         {}
 func (NoopMonitoringService) IncrBytesProcessed(_ string, _ int64)         {}
 func (NoopMonitoringService) MillisBehindLatest(_ string, _ float64)       {}
+func (NoopMonitoringService) DeleteMetricMillisBehindLatest(_ string)      {}
 func (NoopMonitoringService) LeaseGained(_ string)                         {}
 func (NoopMonitoringService) LeaseLost(_ string)                           {}
 func (NoopMonitoringService) LeaseRenewed(_ string)                        {}
