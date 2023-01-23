@@ -283,6 +283,9 @@ type (
 
 		// LeaseSyncingTimeInterval The number of milliseconds to wait before syncing with lease table (dynamoDB)
 		LeaseSyncingTimeIntervalMillis int
+
+		// MaxRetryCount The maximum number of retries in case of error
+		MaxRetryCount int
 	}
 )
 
