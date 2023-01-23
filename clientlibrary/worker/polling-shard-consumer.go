@@ -44,6 +44,10 @@ import (
 	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/metrics"
 )
 
+const (
+	MaxReadTransactionsPerSecond = 5
+)
+
 // PollingShardConsumer is responsible for polling data records from a (specified) shard.
 // Note: PollingShardConsumer only deal with one shard.
 type PollingShardConsumer struct {
@@ -107,6 +111,8 @@ func (sc *PollingShardConsumer) getRecords() error {
 
 	recordCheckpointer := NewRecordProcessorCheckpoint(sc.shard, sc.checkpointer)
 	retriedErrors := 0
+	transactionNum := 0
+	var firstTransactionTime time.Time
 
 	for {
 		if time.Now().UTC().After(sc.shard.GetLeaseTimeout().Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)) {
@@ -132,6 +138,15 @@ func (sc *PollingShardConsumer) getRecords() error {
 		getRecordsArgs := &kinesis.GetRecordsInput{
 			Limit:         aws.Int32(int32(sc.kclConfig.MaxRecords)),
 			ShardIterator: shardIterator,
+		}
+
+		// Each shard can support up to five read transactions per second.
+		if transactionNum > MaxReadTransactionsPerSecond {
+			transactionNum = 0
+			timeDiff := time.Since(firstTransactionTime)
+			if timeDiff < time.Second {
+				time.Sleep(timeDiff)
+			}
 		}
 
 		// Get records from stream and retry as needed
@@ -183,6 +198,12 @@ func (sc *PollingShardConsumer) getRecords() error {
 
 		// reset the retry count after success
 		retriedErrors = 0
+
+		// Add to number of getRecords successful transactions
+		transactionNum++
+		if transactionNum == 1 {
+			firstTransactionTime = getRecordsTransactionTime
+		}
 
 		sc.processRecords(getRecordsStartTime, getResp.Records, getResp.MillisBehindLatest, recordCheckpointer)
 
