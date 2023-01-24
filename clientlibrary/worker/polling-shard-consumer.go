@@ -129,13 +129,13 @@ func (sc *PollingShardConsumer) getRecords() error {
 		getRecordsStartTime := time.Now()
 
 		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.ToString(shardIterator))
+
+		// Get records from stream and retry as needed
 		getRecordsArgs := &kinesis.GetRecordsInput{
 			Limit:         aws.Int32(int32(sc.kclConfig.MaxRecords)),
 			ShardIterator: shardIterator,
 		}
-
-		// Get records from stream and retry as needed
-		getResp, err := sc.kc.GetRecords(context.TODO(), getRecordsArgs)
+		getResp, err := sc.callGetRecordsAPI(getRecordsArgs)
 		if err != nil {
 			//aws-sdk-go-v2 https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md#error-handling
 			var throughputExceededErr *types.ProvisionedThroughputExceededException
@@ -180,4 +180,9 @@ func (sc *PollingShardConsumer) getRecords() error {
 		default:
 		}
 	}
+}
+
+func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, error) {
+	getResp, err := sc.kc.GetRecords(context.TODO(), gri)
+	return getResp, err
 }
