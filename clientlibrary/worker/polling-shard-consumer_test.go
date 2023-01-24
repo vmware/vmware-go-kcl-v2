@@ -22,6 +22,7 @@ package worker
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -44,6 +45,20 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, &ret, out)
 	m1.AssertExpectations(t)
+
+	// check that localTPSExceededError is thrown when trying more than 5 TPS
+	m2 := MockKinesisSubscriberGetter{}
+	psc2 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m2},
+		callsLeft:           0,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 500 * time.Millisecond
+	}
+	out2, err2 := psc2.callGetRecordsAPI(&gri)
+	assert.Nil(t, out2)
+	assert.ErrorIs(t, err2, localTPSExceededError)
+	m2.AssertExpectations(t)
 }
 
 type MockKinesisSubscriberGetter struct {
