@@ -285,6 +285,9 @@ func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) 
 	for _, record := range getResp.Records {
 		sc.bytesRead += float64(len(record.Data))
 	}
+	if sc.lastCheckTime.IsZero() {
+		sc.lastCheckTime = rateLimitTimeNow()
+	}
 
 	return getResp, err
 }
