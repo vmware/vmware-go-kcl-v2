@@ -157,6 +157,14 @@ func (sc *PollingShardConsumer) getRecords() error {
 			var throughputExceededErr *types.ProvisionedThroughputExceededException
 			var kmsThrottlingErr *types.KMSThrottlingException
 			if errors.As(err, &throughputExceededErr) || err == localTPSExceededError {
+				retriedErrors++
+				if retriedErrors > sc.kclConfig.MaxRetryCount {
+					log.Errorf("message", "reached max retry count getting records from shard",
+						"shardId", sc.shard.ID,
+						"retryCount", retriedErrors,
+						"error", err)
+					return err
+				}
 				// If there is insufficient provisioned throughput on the stream,
 				// subsequent calls made within the next 1 second throw ProvisionedThroughputExceededException.
 				// ref: https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html
@@ -166,6 +174,14 @@ func (sc *PollingShardConsumer) getRecords() error {
 			if errors.As(err, &kmsThrottlingErr) {
 				log.Errorf("Error getting records from shard %v: %+v", sc.shard.ID, err)
 				retriedErrors++
+				// Greater than MaxRetryCount so we get the last retry
+				if retriedErrors > sc.kclConfig.MaxRetryCount {
+					log.Errorf("message", "reached max retry count getting records from shard",
+						"shardId", sc.shard.ID,
+						"retryCount", retriedErrors,
+						"error", err)
+					return err
+				}
 				// exponential backoff
 				// https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html#Programming.Errors.RetryAndBackoff
 				time.Sleep(time.Duration(math.Exp2(float64(retriedErrors))*100) * time.Millisecond)

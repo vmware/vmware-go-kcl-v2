@@ -136,6 +136,9 @@ const (
 
 	// DefaultLeaseSyncingIntervalMillis Number of milliseconds to wait before syncing with lease table (dynamodDB)
 	DefaultLeaseSyncingIntervalMillis = 60000
+
+	// DefaultMaxRetryCount The default maximum number of retries in case of error
+	DefaultMaxRetryCount = 5
 )
 
 type (
@@ -283,6 +286,9 @@ type (
 
 		// LeaseSyncingTimeInterval The number of milliseconds to wait before syncing with lease table (dynamoDB)
 		LeaseSyncingTimeIntervalMillis int
+
+		// MaxRetryCount The maximum number of retries in case of error
+		MaxRetryCount int
 	}
 )
 
