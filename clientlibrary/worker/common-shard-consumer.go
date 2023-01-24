@@ -21,6 +21,7 @@
 package worker
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -40,10 +41,16 @@ type shardConsumer interface {
 	getRecords() error
 }
 
+type KinesisSubscriberGetter interface {
+	SubscribeToShard(ctx context.Context, params *kinesis.SubscribeToShardInput, optFns ...func(*kinesis.Options)) (*kinesis.SubscribeToShardOutput, error)
+	GetShardIterator(ctx context.Context, params *kinesis.GetShardIteratorInput, optFns ...func(*kinesis.Options)) (*kinesis.GetShardIteratorOutput, error)
+	GetRecords(ctx context.Context, params *kinesis.GetRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.GetRecordsOutput, error)
+}
+
 // commonShardConsumer implements common functionality for regular and enhanced fan-out consumers
 type commonShardConsumer struct {
 	shard           *par.ShardStatus
-	kc              *kinesis.Client
+	kc              KinesisSubscriberGetter
 	checkpointer    chk.Checkpointer
 	recordProcessor kcl.IRecordProcessor
 	kclConfig       *config.KinesisClientLibConfiguration
