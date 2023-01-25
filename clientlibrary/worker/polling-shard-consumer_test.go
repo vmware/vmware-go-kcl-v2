@@ -41,7 +41,7 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	gri := kinesis.GetRecordsInput{
 		ShardIterator: aws.String("shard-iterator-01"),
 	}
-	out, err := psc.callGetRecordsAPI(&gri)
+	out, _, err := psc.callGetRecordsAPI(&gri)
 	assert.Nil(t, err)
 	assert.Equal(t, &ret, out)
 	m1.AssertExpectations(t)
@@ -55,10 +55,105 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	rateLimitTimeSince = func(t time.Time) time.Duration {
 		return 500 * time.Millisecond
 	}
-	out2, err2 := psc2.callGetRecordsAPI(&gri)
+	out2, _, err2 := psc2.callGetRecordsAPI(&gri)
 	assert.Nil(t, out2)
 	assert.ErrorIs(t, err2, localTPSExceededError)
 	m2.AssertExpectations(t)
+
+	// check that getRecords is called normally in bytesRead = 0 case
+	m3 := MockKinesisSubscriberGetter{}
+	ret3 := kinesis.GetRecordsOutput{}
+	m3.On("GetRecords", mock.Anything, mock.Anything, mock.Anything).Return(&ret3, nil)
+	psc3 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m3},
+		callsLeft:           2,
+		bytesRead:           0,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 2 * time.Second
+	}
+	out3, checkSleepVal, err3 := psc3.callGetRecordsAPI(&gri)
+	assert.Nil(t, err3)
+	assert.Equal(t, checkSleepVal, 0)
+	assert.Equal(t, &ret3, out3)
+	m3.AssertExpectations(t)
+
+	// check that correct cool off period is taken for 10mb in 1 second
+	testTime := time.Now()
+	m4 := MockKinesisSubscriberGetter{}
+	psc4 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m4},
+		callsLeft:           2,
+		bytesRead:           MaxBytes,
+		lastCheckTime:       testTime,
+		remBytes:            MaxBytes,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 2 * time.Second
+	}
+	rateLimitTimeNow = func() time.Time {
+		return testTime.Add(time.Second)
+	}
+	out4, checkSleepVal2, err4 := psc4.callGetRecordsAPI(&gri)
+	assert.Nil(t, out4)
+	assert.Equal(t, maxBytesExceededError, err4)
+	m4.AssertExpectations(t)
+	if checkSleepVal2 != 5 {
+		t.Errorf("Incorrect Cool Off Period: %v", checkSleepVal2)
+	}
+
+	// check that no cool off period is taken for 6mb in 3 seconds
+	testTime2 := time.Now()
+	m5 := MockKinesisSubscriberGetter{}
+	ret5 := kinesis.GetRecordsOutput{}
+	m5.On("GetRecords", mock.Anything, mock.Anything, mock.Anything).Return(&ret5, nil)
+	psc5 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m5},
+		callsLeft:           2,
+		bytesRead:           MaxBytesPerSecond * 3,
+		lastCheckTime:       testTime2,
+		remBytes:            MaxBytes,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 3 * time.Second
+	}
+	rateLimitTimeNow = func() time.Time {
+		return testTime2.Add(time.Second * 3)
+	}
+	out5, checkSleepVal3, err5 := psc5.callGetRecordsAPI(&gri)
+	assert.Nil(t, err5)
+	assert.Equal(t, checkSleepVal3, 0)
+	assert.Equal(t, &ret5, out5)
+	m5.AssertExpectations(t)
+
+	// check for correct cool off period with 8mb in .2 seconds with 6mb remaining
+	testTime3 := time.Now()
+	m6 := MockKinesisSubscriberGetter{}
+	psc6 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m6},
+		callsLeft:           2,
+		bytesRead:           MaxBytesPerSecond * 4,
+		lastCheckTime:       testTime3,
+		remBytes:            MaxBytesPerSecond * 3,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 3 * time.Second
+	}
+	rateLimitTimeNow = func() time.Time {
+		return testTime3.Add(time.Second / 5)
+	}
+	out6, checkSleepVal4, err6 := psc6.callGetRecordsAPI(&gri)
+	assert.Nil(t, out6)
+	assert.Equal(t, err6, maxBytesExceededError)
+	m5.AssertExpectations(t)
+	if checkSleepVal4 != 4 {
+		t.Errorf("Incorrect Cool Off Period: %v", checkSleepVal4)
+	}
+
+	// restore original func
+	rateLimitTimeNow = time.Now
+	rateLimitTimeSince = time.Since
+
 }
 
 type MockKinesisSubscriberGetter struct {
