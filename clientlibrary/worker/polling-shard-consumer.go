@@ -44,14 +44,33 @@ import (
 	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/metrics"
 )
 
+const (
+	kinesisReadTPSLimit = 5
+	MaxBytes            = 10000000
+	MaxBytesPerSecond   = 2000000
+	BytesToMbConversion = 1000000
+)
+
+var (
+	rateLimitTimeNow      = time.Now
+	rateLimitTimeSince    = time.Since
+	localTPSExceededError = errors.New("Error GetRecords TPS Exceeded")
+	maxBytesExceededError = errors.New("Error GetRecords Max Bytes For Call Period Exceeded")
+)
+
 // PollingShardConsumer is responsible for polling data records from a (specified) shard.
 // Note: PollingShardConsumer only deal with one shard.
 type PollingShardConsumer struct {
 	commonShardConsumer
-	streamName string
-	stop       *chan struct{}
-	consumerID string
-	mService   metrics.MonitoringService
+	streamName    string
+	stop          *chan struct{}
+	consumerID    string
+	mService      metrics.MonitoringService
+	currTime      time.Time
+	callsLeft     int
+	remBytes      int
+	lastCheckTime time.Time
+	bytesRead     int
 }
 
 func (sc *PollingShardConsumer) getShardIterator() (*string, error) {
@@ -108,6 +127,12 @@ func (sc *PollingShardConsumer) getRecords() error {
 	recordCheckpointer := NewRecordProcessorCheckpoint(sc.shard, sc.checkpointer)
 	retriedErrors := 0
 
+	// define API call rate limit starting window
+	sc.currTime = rateLimitTimeNow()
+	sc.callsLeft = kinesisReadTPSLimit
+	sc.bytesRead = 0
+	sc.remBytes = MaxBytes
+
 	for {
 		if time.Now().UTC().After(sc.shard.GetLeaseTimeout().Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)) {
 			log.Debugf("Refreshing lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
@@ -135,14 +160,47 @@ func (sc *PollingShardConsumer) getRecords() error {
 			Limit:         aws.Int32(int32(sc.kclConfig.MaxRecords)),
 			ShardIterator: shardIterator,
 		}
-		getResp, err := sc.callGetRecordsAPI(getRecordsArgs)
+		getResp, coolDownPeriod, err := sc.callGetRecordsAPI(getRecordsArgs)
 		if err != nil {
 			//aws-sdk-go-v2 https://github.com/aws/aws-sdk-go-v2/blob/main/CHANGELOG.md#error-handling
 			var throughputExceededErr *types.ProvisionedThroughputExceededException
 			var kmsThrottlingErr *types.KMSThrottlingException
-			if errors.As(err, &throughputExceededErr) || errors.As(err, &kmsThrottlingErr) {
+			if errors.As(err, &throughputExceededErr) {
+				retriedErrors++
+				if retriedErrors > sc.kclConfig.MaxRetryCount {
+					log.Errorf("message", "Throughput Exceeded Error: "+
+						"reached max retry count getting records from shard",
+						"shardId", sc.shard.ID,
+						"retryCount", retriedErrors,
+						"error", err)
+					return err
+				}
+				// If there is insufficient provisioned throughput on the stream,
+				// subsequent calls made within the next 1 second throw ProvisionedThroughputExceededException.
+				// ref: https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html
+				sc.waitASecond(sc.currTime)
+				continue
+			}
+			if err == localTPSExceededError {
+				sc.waitASecond(sc.currTime)
+				continue
+			}
+			if err == maxBytesExceededError {
+				time.Sleep(time.Duration(coolDownPeriod) * time.Second)
+				continue
+			}
+			if errors.As(err, &kmsThrottlingErr) {
 				log.Errorf("Error getting records from shard %v: %+v", sc.shard.ID, err)
 				retriedErrors++
+				// Greater than MaxRetryCount so we get the last retry
+				if retriedErrors > sc.kclConfig.MaxRetryCount {
+					log.Errorf("message", "KMS Throttling Error: "+
+						"reached max retry count getting records from shard",
+						"shardId", sc.shard.ID,
+						"retryCount", retriedErrors,
+						"error", err)
+					return err
+				}
 				// exponential backoff
 				// https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Programming.Errors.html#Programming.Errors.RetryAndBackoff
 				time.Sleep(time.Duration(math.Exp2(float64(retriedErrors))*100) * time.Millisecond)
@@ -182,7 +240,64 @@ func (sc *PollingShardConsumer) getRecords() error {
 	}
 }
 
-func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, error) {
+func (sc *PollingShardConsumer) waitASecond(timePassed time.Time) {
+	waitTime := time.Since(timePassed)
+	if waitTime < time.Second {
+		time.Sleep(time.Second - waitTime)
+	}
+}
+
+func (sc *PollingShardConsumer) checkCoolOffPeriod() (int, error) {
+	// Each shard can support up to a maximum total data read rate of 2 MB per second via GetRecords.
+	// If a call to GetRecords returns 10 MB, subsequent calls made within the next 5 seconds throw an exception.
+	// ref: https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html
+	// check for overspending of byte budget from getRecords call
+	currentTime := rateLimitTimeNow()
+	secondsPassed := currentTime.Sub(sc.lastCheckTime).Seconds()
+	sc.lastCheckTime = currentTime
+	sc.remBytes += int(secondsPassed * MaxBytesPerSecond)
+	transactionReadRate := float64(sc.bytesRead) / (secondsPassed * BytesToMbConversion)
+
+	if sc.remBytes > MaxBytes {
+		sc.remBytes = MaxBytes
+	}
+	if sc.remBytes <= sc.bytesRead || transactionReadRate > 2 {
+		// Wait until cool down period has passed to prevent ProvisionedThroughputExceededException
+		coolDown := sc.bytesRead / MaxBytesPerSecond
+		return coolDown, maxBytesExceededError
+	} else {
+		sc.remBytes -= sc.bytesRead
+	}
+	return 0, nil
+}
+
+func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) (*kinesis.GetRecordsOutput, int, error) {
+	if sc.bytesRead != 0 {
+		coolDownPeriod, err := sc.checkCoolOffPeriod()
+		if err != nil {
+			return nil, coolDownPeriod, err
+		}
+	}
+	// every new second, we get a fresh set of calls
+	if rateLimitTimeSince(sc.currTime) > time.Second {
+		sc.callsLeft = kinesisReadTPSLimit
+		sc.currTime = rateLimitTimeNow()
+	}
+
+	if sc.callsLeft < 1 {
+		return nil, 0, localTPSExceededError
+	}
+
 	getResp, err := sc.kc.GetRecords(context.TODO(), gri)
-	return getResp, err
+	sc.callsLeft--
+	// Calculate size of records from read transaction
+	sc.bytesRead = 0
+	for _, record := range getResp.Records {
+		sc.bytesRead += len(record.Data)
+	}
+	if sc.lastCheckTime.IsZero() {
+		sc.lastCheckTime = rateLimitTimeNow()
+	}
+
+	return getResp, 0, err
 }
