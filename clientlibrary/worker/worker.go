@@ -316,10 +316,13 @@ func (w *Worker) eventLoop() {
 				}
 
 				var stealShard bool
-				if w.kclConfig.EnableLeaseStealing && shard.ClaimRequest != "" {
+				if w.kclConfig.EnableLeaseStealing && shard.GetClaimRequest() != "" {
 					upcomingStealingInterval := time.Now().UTC().Add(time.Duration(w.kclConfig.LeaseStealingIntervalMillis) * time.Millisecond)
+					// lease timeout has to before 5 seconds or less from curr time;
+					// if this is how it is being implemented to deal with expired leases too then we should not pick shard to steal at random
+					// instead we should choose the shard with the lease closest to expiry?
 					if shard.GetLeaseTimeout().Before(upcomingStealingInterval) && !shard.IsClaimRequestExpired(w.kclConfig) {
-						if shard.ClaimRequest == w.workerID {
+						if shard.GetClaimRequest() == w.workerID {
 							stealShard = true
 							log.Debugf("Stealing shard: %s", shard.ID)
 						} else {
@@ -327,6 +330,11 @@ func (w *Worker) eventLoop() {
 							continue
 						}
 					}
+				}
+
+				// need to have logic like this somewhere to get rid of expired claimRequests
+				if shard.GetClaimRequest() == w.workerID && shard.IsClaimRequestExpired(w.kclConfig) {
+					w.checkpointer.RemoveClaimRequest(w.workerID)
 				}
 
 				err = w.checkpointer.GetLease(shard, w.workerID)
@@ -391,7 +399,7 @@ func (w *Worker) rebalance() error {
 			return err
 		}
 		for _, shard := range w.shardStatus {
-			if shard.ClaimRequest != "" && shard.ClaimRequest == w.workerID {
+			if shard.GetClaimRequest() != "" && shard.GetClaimRequest() == w.workerID {
 				log.Debugf("Steal in progress. workerID: %s", w.workerID)
 				return nil
 			}

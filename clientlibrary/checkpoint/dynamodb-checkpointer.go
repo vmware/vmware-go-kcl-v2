@@ -235,7 +235,8 @@ func (checkpointer *DynamoCheckpoint) GetLease(shard *par.ShardStatus, newAssign
 		}
 		return err
 	}
-
+	// if it is the case where there was a claimRequest with this worker for this shard now it can be removed as it is been stolen
+	checkpointer.RemoveClaimRequest(claimRequest)
 	shard.Mux.Lock()
 	shard.AssignedTo = newAssignTo
 	shard.LeaseTimeout = newLeaseTimeout
@@ -288,6 +289,10 @@ func (checkpointer *DynamoCheckpoint) FetchCheckpoint(shard *par.ShardStatus) er
 		shard.SetLeaseOwner(assignedTo.(*types.AttributeValueMemberS).Value)
 	}
 
+	if claimRequest, ok := checkpoint[ClaimRequestKey]; ok {
+		shard.SetClaimRequest(claimRequest.(*types.AttributeValueMemberS).Value)
+	}
+
 	// Use up-to-date leaseTimeout to avoid ConditionalCheckFailedException when claiming
 	if leaseTimeout, ok := checkpoint[LeaseTimeoutKey]; ok && leaseTimeout.(*types.AttributeValueMemberS).Value != "" {
 		currentLeaseTimeout, err := time.Parse(time.RFC3339, leaseTimeout.(*types.AttributeValueMemberS).Value)
@@ -309,6 +314,29 @@ func (checkpointer *DynamoCheckpoint) RemoveLeaseInfo(shardID string) error {
 	} else {
 		checkpointer.log.Infof("Lease info for shard: %s has been removed.", shardID)
 	}
+
+	return err
+}
+
+// RemoveClaimRequest to remove expired claim request for shard
+func (checkpointer *DynamoCheckpoint) RemoveClaimRequest(shardID string) error {
+	input := &dynamodb.UpdateItemInput{
+		TableName: aws.String(checkpointer.TableName),
+		Key: map[string]types.AttributeValue{
+			LeaseKeyKey: &types.AttributeValueMemberS{
+				Value: shardID,
+			},
+		},
+		UpdateExpression: aws.String("remove " + ClaimRequestKey),
+		ExpressionAttributeValues: map[string]types.AttributeValue{
+			":claim_request": &types.AttributeValueMemberS{
+				Value: checkpointer.kclConfig.WorkerID,
+			},
+		},
+		ConditionExpression: aws.String("ClaimRequest = :claim_request"),
+	}
+
+	_, err := checkpointer.svc.UpdateItem(context.TODO(), input)
 
 	return err
 }
@@ -435,7 +463,7 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 
 	checkpointer.lastLeaseSync = time.Now()
 	input := &dynamodb.ScanInput{
-		ProjectionExpression: aws.String(fmt.Sprintf("%s,%s,%s", LeaseKeyKey, LeaseOwnerKey, SequenceNumberKey)),
+		ProjectionExpression: aws.String(fmt.Sprintf("%s,%s,%s,%s", LeaseKeyKey, LeaseOwnerKey, SequenceNumberKey, ClaimRequestKey)),
 		Select:               "SPECIFIC_ATTRIBUTES",
 		TableName:            aws.String(checkpointer.kclConfig.TableName),
 	}
@@ -452,13 +480,22 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 		shardId, foundShardId := result[LeaseKeyKey]
 		assignedTo, foundAssignedTo := result[LeaseOwnerKey]
 		checkpoint, foundCheckpoint := result[SequenceNumberKey]
-		if !foundShardId || !foundAssignedTo || !foundCheckpoint {
+		claimRequest, foundClaimRequest := result[ClaimRequestKey]
+		if !foundShardId {
 			continue
 		}
-
-		if shard, ok := shardStatus[shardId.(*types.AttributeValueMemberS).Value]; ok {
+		shard, ok := shardStatus[shardId.(*types.AttributeValueMemberS).Value]
+		if !ok {
+			continue
+		}
+		if foundAssignedTo {
 			shard.SetLeaseOwner(assignedTo.(*types.AttributeValueMemberS).Value)
+		}
+		if foundCheckpoint {
 			shard.SetCheckpoint(checkpoint.(*types.AttributeValueMemberS).Value)
+		}
+		if foundClaimRequest {
+			shard.SetClaimRequest(claimRequest.(*types.AttributeValueMemberS).Value)
 		}
 	}
 

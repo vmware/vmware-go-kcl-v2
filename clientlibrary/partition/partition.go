@@ -86,6 +86,18 @@ func (ss *ShardStatus) SetLeaseTimeout(timeout time.Time) {
 	ss.LeaseTimeout = timeout
 }
 
+func (ss *ShardStatus) GetClaimRequest() string {
+	ss.Mux.Lock()
+	defer ss.Mux.Unlock()
+	return ss.ClaimRequest
+}
+
+func (ss *ShardStatus) SetClaimRequest(claimRequest string) {
+	ss.Mux.Lock()
+	defer ss.Mux.Unlock()
+	ss.ClaimRequest = claimRequest
+}
+
 func (ss *ShardStatus) IsClaimRequestExpired(kclConfig *config.KinesisClientLibConfiguration) bool {
 	if leaseTimeout := ss.GetLeaseTimeout(); leaseTimeout.IsZero() {
 		return false
