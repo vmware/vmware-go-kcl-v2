@@ -66,7 +66,7 @@ func (sc *commonShardConsumer) releaseLease(shard string) {
 	// Release the lease by wiping out the lease owner for the shard
 	// Note: we don't need to do anything in case of error here and shard lease will eventually be expired.
 	if err := sc.checkpointer.RemoveLeaseOwner(sc.shard.ID); err != nil {
-		log.Errorf("Failed to release shard lease or shard: %s Error: %+v", sc.shard.ID, err)
+		log.Debugf("Failed to release shard lease or shard: %s Error: %+v", sc.shard.ID, err)
 	}
 
 	// reporting lease lose metrics
