@@ -21,6 +21,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -28,6 +29,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+)
+
+var (
+	testGetRecordsError = errors.New("GetRecords Error")
 )
 
 func TestCallGetRecordsAPI(t *testing.T) {
@@ -149,6 +154,24 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	if checkSleepVal4 != 4 {
 		t.Errorf("Incorrect Cool Off Period: %v", checkSleepVal4)
 	}
+
+	// case where getRecords throws error
+	m7 := MockKinesisSubscriberGetter{}
+	ret7 := kinesis.GetRecordsOutput{Records: nil}
+	m7.On("GetRecords", mock.Anything, mock.Anything, mock.Anything).Return(&ret7, testGetRecordsError)
+	psc7 := PollingShardConsumer{
+		commonShardConsumer: commonShardConsumer{kc: &m7},
+		callsLeft:           2,
+		bytesRead:           0,
+	}
+	rateLimitTimeSince = func(t time.Time) time.Duration {
+		return 2 * time.Second
+	}
+	out7, checkSleepVal7, err7 := psc7.callGetRecordsAPI(&gri)
+	assert.Equal(t, err7, testGetRecordsError)
+	assert.Equal(t, checkSleepVal7, 0)
+	assert.Equal(t, out7, &ret7)
+	m7.AssertExpectations(t)
 
 	// restore original func
 	rateLimitTimeNow = time.Now
