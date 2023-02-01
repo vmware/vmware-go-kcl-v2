@@ -287,9 +287,13 @@ func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) 
 	if sc.callsLeft < 1 {
 		return nil, 0, localTPSExceededError
 	}
-
 	getResp, err := sc.kc.GetRecords(context.TODO(), gri)
 	sc.callsLeft--
+
+	if err != nil {
+		return getResp, 0, err
+	}
+
 	// Calculate size of records from read transaction
 	sc.bytesRead = 0
 	for _, record := range getResp.Records {
