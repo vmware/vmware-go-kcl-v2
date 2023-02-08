@@ -127,6 +127,17 @@ func (sc *PollingShardConsumer) getRecords() error {
 		getRecordsStartTime := time.Now()
 
 		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.ToString(shardIterator))
+
+		// check if ResetShardIterator returns true
+		if sc.recordProcessor.ResetShardIterator() {
+			// reset shard iterator
+			shardIterator, err = sc.getShardIterator()
+			if err != nil {
+				log.Errorf("Unable to get shard iterator for %s: %v", sc.shard.ID, err)
+				return err
+			}
+		}
+
 		getRecordsArgs := &kinesis.GetRecordsInput{
 			Limit:         aws.Int32(int32(sc.kclConfig.MaxRecords)),
 			ShardIterator: shardIterator,

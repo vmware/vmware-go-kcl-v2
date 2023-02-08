@@ -61,6 +61,12 @@ type (
 		 */
 		ProcessRecords(processRecordsInput *ProcessRecordsInput)
 
+		// ResetShardIterator
+		/*
+		 * If true, resets the shard iterator to the last checkpointed sequence number for the shard.
+		 */
+		ResetShardIterator() bool
+
 		// Shutdown
 		/*
 		 * Invoked by the Amazon Kinesis Client Library to indicate it will no longer send data records to this

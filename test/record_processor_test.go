@@ -57,6 +57,10 @@ func (dd *dumpRecordProcessor) Initialize(input *kc.InitializationInput) {
 	dd.count = 0
 }
 
+func (dd *dumpRecordProcessor) ResetShardIterator() bool {
+	return false
+}
+
 func (dd *dumpRecordProcessor) ProcessRecords(input *kc.ProcessRecordsInput) {
 	dd.t.Log("Processing Records...")
 
