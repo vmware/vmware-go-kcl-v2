@@ -53,6 +53,10 @@ read our [Developer Certificate of Origin](https://cla.vmware.com/dco). All cont
 signed as described on that page. Your signature certifies that you wrote the patch or have the right to pass it on
 as an open-source patch. For more detailed information, refer to [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Additional Notes If Modifying kclConfig values
+* Currently there are some bugs with the lease stealing logic within vmware-go-kcl-v2 so please keep the EnableLeaseStealing kclConfig value as false.
+* When using a non-default FailoverTimeMillis kclConfig value, keeping a 2:1 ratio between FailoverTimeMillis and LeaseRefreshPeriodMillis typically helps to reduce the chance of worker lease contention.
+
 ## License
 
 MIT License
