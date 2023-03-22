@@ -182,10 +182,12 @@ func (sc *PollingShardConsumer) getRecords() error {
 				continue
 			}
 			if err == localTPSExceededError {
+				log.Infof("localTPSExceededError so sleep for a second")
 				sc.waitASecond(sc.currTime)
 				continue
 			}
 			if err == maxBytesExceededError {
+				log.Infof("maxBytesExceededError so sleep for %+v seconds", coolDownPeriod)
 				time.Sleep(time.Duration(coolDownPeriod) * time.Second)
 				continue
 			}
