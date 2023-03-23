@@ -187,8 +187,10 @@ func (sc *PollingShardConsumer) getRecords() error {
 				continue
 			}
 			if err == maxBytesExceededError {
-				log.Infof("maxBytesExceededError so sleep for %+v seconds", coolDownPeriod)
-				time.Sleep(time.Duration(coolDownPeriod) * time.Second)
+				if coolDownPeriod != 0 {
+					log.Infof("maxBytesExceededError so sleep for %+v seconds", coolDownPeriod)
+					time.Sleep(time.Duration(coolDownPeriod) * time.Second)
+				}
 				continue
 			}
 			if errors.As(err, &kmsThrottlingErr) {
