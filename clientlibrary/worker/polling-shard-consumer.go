@@ -258,14 +258,16 @@ func (sc *PollingShardConsumer) checkCoolOffPeriod() (int, error) {
 	secondsPassed := currentTime.Sub(sc.lastCheckTime).Seconds()
 	sc.lastCheckTime = currentTime
 	sc.remBytes += int(secondsPassed * MaxBytesPerSecond)
-	transactionReadRate := float64(sc.bytesRead) / (secondsPassed * BytesToMbConversion)
 
 	if sc.remBytes > MaxBytes {
 		sc.remBytes = MaxBytes
 	}
-	if sc.remBytes <= sc.bytesRead || transactionReadRate > 2 {
+	if sc.remBytes < 1 {
 		// Wait until cool down period has passed to prevent ProvisionedThroughputExceededException
 		coolDown := sc.bytesRead / MaxBytesPerSecond
+		if sc.bytesRead%MaxBytesPerSecond > 0 {
+			coolDown++
+		}
 		return coolDown, maxBytesExceededError
 	} else {
 		sc.remBytes -= sc.bytesRead
