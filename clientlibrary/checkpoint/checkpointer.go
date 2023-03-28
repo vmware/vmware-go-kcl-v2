@@ -79,6 +79,9 @@ type Checkpointer interface {
 	// RemoveLeaseOwner to remove lease owner for the shard entry to make the shard available for reassignment
 	RemoveLeaseOwner(string) error
 
+	// GetLeaseOwner to get current owner of lease for shard
+	GetLeaseOwner(string) (string, error)
+
 	// ListActiveWorkers returns active workers and their shards (New Lease Stealing Methods)
 	ListActiveWorkers(map[string]*par.ShardStatus) (map[string][]*par.ShardStatus, error)
 
