@@ -59,7 +59,7 @@ type (
 		 * @param processRecordsInput Provides the records to be processed as well as information and capabilities related
 		 *        to them (eg checkpointing).
 		 */
-		ProcessRecords(processRecordsInput *ProcessRecordsInput)
+		ProcessRecords(processRecordsInput *ProcessRecordsInput) error
 
 		// Shutdown
 		/*

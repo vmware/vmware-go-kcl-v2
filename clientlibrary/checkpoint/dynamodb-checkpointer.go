@@ -51,6 +51,10 @@ const (
 	NumMaxRetries = 10
 )
 
+var (
+	NoLeaseOwnerErr = errors.New("no LeaseOwner in checkpoints table")
+)
+
 // DynamoCheckpoint implements the Checkpoint interface using DynamoDB as a backend
 type DynamoCheckpoint struct {
 	log                     logger.Logger
@@ -334,6 +338,23 @@ func (checkpointer *DynamoCheckpoint) RemoveLeaseOwner(shardID string) error {
 	_, err := checkpointer.svc.UpdateItem(context.TODO(), input)
 
 	return err
+}
+
+// GetLeaseOwner returns current lease owner of given shard in checkpoints table
+func (checkpointer *DynamoCheckpoint) GetLeaseOwner(shardID string) (string, error) {
+	currentCheckpoint, err := checkpointer.getItem(shardID)
+	if err != nil {
+		return "", err
+	}
+
+	assignedVar, assignedToOk := currentCheckpoint[LeaseOwnerKey]
+
+	if !assignedToOk {
+		return "", NoLeaseOwnerErr
+	}
+
+	return assignedVar.(*types.AttributeValueMemberS).Value, nil
+
 }
 
 // ListActiveWorkers returns a map of workers and their shards

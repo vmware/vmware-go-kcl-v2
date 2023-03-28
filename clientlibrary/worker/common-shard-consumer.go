@@ -136,7 +136,7 @@ func (sc *commonShardConsumer) waitOnParentShard() error {
 	}
 }
 
-func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, records []types.Record, millisBehindLatest *int64, recordCheckpointer kcl.IRecordProcessorCheckpointer) {
+func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, records []types.Record, millisBehindLatest *int64, recordCheckpointer kcl.IRecordProcessorCheckpointer) error {
 	log := sc.kclConfig.Logger
 
 	getRecordsTime := time.Since(getRecordsStartTime).Milliseconds()
@@ -172,7 +172,10 @@ func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, rec
 		// Delivery the events to the record processor
 		input.CacheEntryTime = &getRecordsStartTime
 		input.CacheExitTime = &processRecordsStartTime
-		sc.recordProcessor.ProcessRecords(input)
+		err := sc.recordProcessor.ProcessRecords(input)
+		if err != nil {
+			return err
+		}
 
 		processedRecordsTiming := time.Since(processRecordsStartTime).Milliseconds()
 		sc.mService.RecordProcessRecordsTime(sc.shard.ID, float64(processedRecordsTiming))
@@ -181,4 +184,5 @@ func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, rec
 	sc.mService.IncrRecordsProcessed(sc.shard.ID, recordLength)
 	sc.mService.IncrBytesProcessed(sc.shard.ID, recordBytes)
 	sc.mService.MillisBehindLatest(sc.shard.ID, float64(*millisBehindLatest))
+	return nil
 }
