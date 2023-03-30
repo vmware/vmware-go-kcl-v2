@@ -214,7 +214,10 @@ func (sc *PollingShardConsumer) getRecords() error {
 		// reset the retry count after success
 		retriedErrors = 0
 
-		sc.processRecords(getRecordsStartTime, getResp.Records, getResp.MillisBehindLatest, recordCheckpointer)
+		err = sc.processRecords(getRecordsStartTime, getResp.Records, getResp.MillisBehindLatest, recordCheckpointer)
+		if err != nil {
+			return err
+		}
 
 		// The shard has been closed, so no new records can be read from it
 		if getResp.NextShardIterator == nil {
