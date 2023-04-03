@@ -32,6 +32,7 @@ package worker
 import (
 	"context"
 	"errors"
+	log "github.com/sirupsen/logrus"
 	"math"
 	"time"
 
@@ -132,25 +133,12 @@ func (sc *PollingShardConsumer) getRecords() error {
 	sc.callsLeft = kinesisReadTPSLimit
 	sc.bytesRead = 0
 	sc.remBytes = MaxBytes
-
+	// starting async lease renewal thread
+	leaseRenewalErrChan := make(chan error, 1)
+	go func() {
+		leaseRenewalErrChan <- sc.renewLease()
+	}()
 	for {
-		if time.Now().UTC().After(sc.shard.GetLeaseTimeout().Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)) {
-			log.Debugf("Refreshing lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
-			err = sc.checkpointer.GetLease(sc.shard, sc.consumerID)
-			if err != nil {
-				if errors.As(err, &chk.ErrLeaseNotAcquired{}) {
-					log.Warnf("Failed in acquiring lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
-					return nil
-				}
-				// log and return error
-				log.Errorf("Error in refreshing lease on shard: %s for worker: %s. Error: %+v",
-					sc.shard.ID, sc.consumerID, err)
-				return err
-			}
-			// log metric for renewed lease for worker
-			sc.mService.LeaseRenewed(sc.shard.ID)
-		}
-
 		getRecordsStartTime := time.Now()
 
 		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.ToString(shardIterator))
@@ -214,10 +202,7 @@ func (sc *PollingShardConsumer) getRecords() error {
 		// reset the retry count after success
 		retriedErrors = 0
 
-		err = sc.processRecords(getRecordsStartTime, getResp.Records, getResp.MillisBehindLatest, recordCheckpointer)
-		if err != nil {
-			return err
-		}
+		sc.processRecords(getRecordsStartTime, getResp.Records, getResp.MillisBehindLatest, recordCheckpointer)
 
 		// The shard has been closed, so no new records can be read from it
 		if getResp.NextShardIterator == nil {
@@ -240,6 +225,8 @@ func (sc *PollingShardConsumer) getRecords() error {
 			shutdownInput := &kcl.ShutdownInput{ShutdownReason: kcl.REQUESTED, Checkpointer: recordCheckpointer}
 			sc.recordProcessor.Shutdown(shutdownInput)
 			return nil
+		case leaseRenewalErr := <-leaseRenewalErrChan:
+			return leaseRenewalErr
 		default:
 		}
 	}
@@ -311,4 +298,24 @@ func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) 
 	}
 
 	return getResp, 0, err
+}
+
+func (sc *PollingShardConsumer) renewLease() error {
+	for {
+		time.Sleep(time.Duration(sc.kclConfig.LeaseRefreshWaitTime) * time.Millisecond)
+		log.Debugf("Refreshing lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
+		err := sc.checkpointer.GetLease(sc.shard, sc.consumerID)
+		if err != nil {
+			if errors.As(err, &chk.ErrLeaseNotAcquired{}) {
+				log.Warnf("Failed in acquiring lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
+				return nil
+			}
+			// log and return error
+			log.Errorf("Error in refreshing lease on shard: %s for worker: %s. Error: %+v",
+				sc.shard.ID, sc.consumerID, err)
+			return err
+		}
+		// log metric for renewed lease for worker
+		sc.mService.LeaseRenewed(sc.shard.ID)
+	}
 }
