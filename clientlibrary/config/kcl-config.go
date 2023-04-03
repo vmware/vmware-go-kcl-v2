@@ -102,6 +102,7 @@ func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regio
 		LeaseStealingIntervalMillis:                      DefaultLeaseStealingIntervalMillis,
 		LeaseStealingClaimTimeoutMillis:                  DefaultLeaseStealingClaimTimeoutMillis,
 		LeaseSyncingTimeIntervalMillis:                   DefaultLeaseSyncingIntervalMillis,
+		LeaseRefreshWaitTime:                             DefaultLeaseRefreshWaitTime,
 		MaxRetryCount:                                    DefaultMaxRetryCount,
 		Logger:                                           logger.GetDefaultLogger(),
 	}
@@ -146,6 +147,12 @@ func (c *KinesisClientLibConfiguration) WithFailoverTimeMillis(failoverTimeMilli
 func (c *KinesisClientLibConfiguration) WithLeaseRefreshPeriodMillis(leaseRefreshPeriodMillis int) *KinesisClientLibConfiguration {
 	checkIsValuePositive("LeaseRefreshPeriodMillis", leaseRefreshPeriodMillis)
 	c.LeaseRefreshPeriodMillis = leaseRefreshPeriodMillis
+	return c
+}
+
+func (c *KinesisClientLibConfiguration) WithLeaseRefreshWaitTime(leaseRefreshWaitTime int) *KinesisClientLibConfiguration {
+	checkIsValuePositive("LeaseRefreshWaitTime", leaseRefreshWaitTime)
+	c.LeaseRefreshWaitTime = leaseRefreshWaitTime
 	return c
 }
 

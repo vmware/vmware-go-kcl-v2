@@ -69,6 +69,9 @@ const (
 	// DefaultLeaseRefreshPeriodMillis Period before the end of lease during which a lease is refreshed by the owner.
 	DefaultLeaseRefreshPeriodMillis = 5000
 
+	// DefaultLeaseRefreshWaitTime is the period of time to wait before async lease renewal attempt
+	DefaultLeaseRefreshWaitTime = 2500
+
 	// DefaultMaxRecords Max records to fetch from Kinesis in a single GetRecords call.
 	DefaultMaxRecords = 10000
 
@@ -215,6 +218,9 @@ type (
 
 		// LeaseRefreshPeriodMillis is the period before the end of lease during which a lease is refreshed by the owner.
 		LeaseRefreshPeriodMillis int
+
+		// LeaseRefreshWaitTime is the period of time to wait before async lease renewal attempt
+		LeaseRefreshWaitTime int
 
 		// MaxRecords Max records to read per Kinesis getRecords() call
 		MaxRecords int

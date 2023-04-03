@@ -21,17 +21,10 @@
 package worker
 
 import (
-	"errors"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	chk "github.com/vmware/vmware-go-kcl-v2/clientlibrary/checkpoint"
 	kcl "github.com/vmware/vmware-go-kcl-v2/clientlibrary/interfaces"
 	par "github.com/vmware/vmware-go-kcl-v2/clientlibrary/partition"
-	"time"
-)
-
-var (
-	ShutdownError     = errors.New("another instance may have started processing some of these records already")
-	LeaseExpiredError = errors.New("the lease has on the shard has expired")
 )
 
 type (
@@ -75,17 +68,6 @@ func (pc *PreparedCheckpointer) Checkpoint() error {
 }
 
 func (rc *RecordProcessorCheckpointer) Checkpoint(sequenceNumber *string) error {
-	// return shutdown error if lease is expired or another worker has started processing records for this shard
-	currLeaseOwner, err := rc.checkpoint.GetLeaseOwner(rc.shard.ID)
-	if err != nil {
-		return err
-	}
-	if rc.shard.AssignedTo != currLeaseOwner {
-		return ShutdownError
-	}
-	if time.Now().After(rc.shard.LeaseTimeout) {
-		return LeaseExpiredError
-	}
 	// checkpoint the last sequence of a closed shard
 	if sequenceNumber == nil {
 		rc.shard.SetCheckpoint(chk.ShardEnd)
