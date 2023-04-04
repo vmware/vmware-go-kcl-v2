@@ -306,10 +306,6 @@ func (sc *PollingShardConsumer) renewLease() error {
 		log.Debugf("Refreshing lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
 		err := sc.checkpointer.GetLease(sc.shard, sc.consumerID)
 		if err != nil {
-			if errors.As(err, &chk.ErrLeaseNotAcquired{}) {
-				log.Warnf("Failed in acquiring lease on shard: %s for worker: %s", sc.shard.ID, sc.consumerID)
-				return nil
-			}
 			// log and return error
 			log.Errorf("Error in refreshing lease on shard: %s for worker: %s. Error: %+v",
 				sc.shard.ID, sc.consumerID, err)
