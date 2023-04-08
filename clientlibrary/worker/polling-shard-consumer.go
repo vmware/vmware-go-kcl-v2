@@ -145,6 +145,16 @@ func (sc *PollingShardConsumer) getRecords() error {
 		leaseRenewalErrChan <- sc.renewLease(ctx)
 	}()
 	for {
+		select {
+		case <-*sc.stop:
+			shutdownInput := &kcl.ShutdownInput{ShutdownReason: kcl.REQUESTED, Checkpointer: recordCheckpointer}
+			sc.recordProcessor.Shutdown(shutdownInput)
+			return nil
+		case leaseRenewalErr := <-leaseRenewalErrChan:
+			return leaseRenewalErr
+		default:
+		}
+
 		getRecordsStartTime := time.Now()
 
 		log.Debugf("Trying to read %d record from iterator: %v", sc.kclConfig.MaxRecords, aws.ToString(shardIterator))
@@ -226,15 +236,6 @@ func (sc *PollingShardConsumer) getRecords() error {
 			time.Sleep(time.Duration(sc.kclConfig.IdleTimeBetweenReadsInMillis) * time.Millisecond)
 		}
 
-		select {
-		case <-*sc.stop:
-			shutdownInput := &kcl.ShutdownInput{ShutdownReason: kcl.REQUESTED, Checkpointer: recordCheckpointer}
-			sc.recordProcessor.Shutdown(shutdownInput)
-			return nil
-		case leaseRenewalErr := <-leaseRenewalErrChan:
-			return leaseRenewalErr
-		default:
-		}
 	}
 }
 
