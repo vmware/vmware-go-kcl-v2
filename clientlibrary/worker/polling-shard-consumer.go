@@ -32,9 +32,10 @@ package worker
 import (
 	"context"
 	"errors"
-	log "github.com/sirupsen/logrus"
 	"math"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -53,10 +54,10 @@ const (
 )
 
 var (
-	rateLimitTimeNow      = time.Now
-	rateLimitTimeSince    = time.Since
-	localTPSExceededError = errors.New("Error GetRecords TPS Exceeded")
-	maxBytesExceededError = errors.New("Error GetRecords Max Bytes For Call Period Exceeded")
+	rateLimitTimeNow    = time.Now
+	rateLimitTimeSince  = time.Since
+	errLocalTPSExceeded = errors.New("error GetRecords TPS exceeded")
+	errMaxBytesExceeded = errors.New("error GetRecords max bytes for call period exceeded")
 )
 
 // PollingShardConsumer is responsible for polling data records from a (specified) shard.
@@ -175,13 +176,13 @@ func (sc *PollingShardConsumer) getRecords() error {
 				sc.waitASecond(sc.currTime)
 				continue
 			}
-			if err == localTPSExceededError {
-				log.Infof("localTPSExceededError so sleep for a second")
+			if err == errLocalTPSExceeded {
+				log.Debugf("localTPSExceededError so sleep for a second")
 				sc.waitASecond(sc.currTime)
 				continue
 			}
-			if err == maxBytesExceededError {
-				log.Infof("maxBytesExceededError so sleep for %+v seconds", coolDownPeriod)
+			if err == errMaxBytesExceeded {
+				log.Debugf("maxBytesExceededError so sleep for %+v seconds", coolDownPeriod)
 				time.Sleep(time.Duration(coolDownPeriod) * time.Second)
 				continue
 			}
@@ -264,7 +265,7 @@ func (sc *PollingShardConsumer) checkCoolOffPeriod() (int, error) {
 		if sc.bytesRead%MaxBytesPerSecond > 0 {
 			coolDown++
 		}
-		return coolDown, maxBytesExceededError
+		return coolDown, errMaxBytesExceeded
 	} else {
 		sc.remBytes -= sc.bytesRead
 	}
@@ -285,7 +286,7 @@ func (sc *PollingShardConsumer) callGetRecordsAPI(gri *kinesis.GetRecordsInput) 
 	}
 
 	if sc.callsLeft < 1 {
-		return nil, 0, localTPSExceededError
+		return nil, 0, errLocalTPSExceeded
 	}
 	getResp, err := sc.kc.GetRecords(context.TODO(), gri)
 	sc.callsLeft--

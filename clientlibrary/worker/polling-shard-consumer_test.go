@@ -32,7 +32,7 @@ import (
 )
 
 var (
-	testGetRecordsError = errors.New("GetRecords Error")
+	errTestGetRecords = errors.New("GetRecords error")
 )
 
 func TestCallGetRecordsAPI(t *testing.T) {
@@ -62,7 +62,7 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	}
 	out2, _, err2 := psc2.callGetRecordsAPI(&gri)
 	assert.Nil(t, out2)
-	assert.ErrorIs(t, err2, localTPSExceededError)
+	assert.ErrorIs(t, err2, errLocalTPSExceeded)
 	m2.AssertExpectations(t)
 
 	// check that getRecords is called normally in bytesRead = 0 case
@@ -162,7 +162,7 @@ func TestCallGetRecordsAPI(t *testing.T) {
 	// case where getRecords throws error
 	m7 := MockKinesisSubscriberGetter{}
 	ret7 := kinesis.GetRecordsOutput{Records: nil}
-	m7.On("GetRecords", mock.Anything, mock.Anything, mock.Anything).Return(&ret7, testGetRecordsError)
+	m7.On("GetRecords", mock.Anything, mock.Anything, mock.Anything).Return(&ret7, errTestGetRecords)
 	psc7 := PollingShardConsumer{
 		commonShardConsumer: commonShardConsumer{kc: &m7},
 		callsLeft:           2,
@@ -172,7 +172,7 @@ func TestCallGetRecordsAPI(t *testing.T) {
 		return 2 * time.Second
 	}
 	out7, checkSleepVal7, err7 := psc7.callGetRecordsAPI(&gri)
-	assert.Equal(t, err7, testGetRecordsError)
+	assert.Equal(t, err7, errTestGetRecords)
 	assert.Equal(t, checkSleepVal7, 0)
 	assert.Equal(t, out7, &ret7)
 	m7.AssertExpectations(t)
