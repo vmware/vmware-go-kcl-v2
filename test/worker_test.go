@@ -338,7 +338,8 @@ func getMetricsConfig(kclConfig *cfg.KinesisClientLibConfiguration, service stri
 		return cloudwatch.NewMonitoringServiceWithOptions(kclConfig.RegionName,
 			kclConfig.KinesisCredentials,
 			kclConfig.Logger,
-			cloudwatch.DefaultCloudwatchMetricsBufferDuration)
+			cloudwatch.DefaultCloudwatchMetricsBufferDuration,
+		)
 	}
 
 	if service == "prometheus" {
