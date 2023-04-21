@@ -298,6 +298,13 @@ func (cw *MonitoringService) MillisBehindLatest(shard string, millSeconds float6
 	m.behindLatestMillis = append(m.behindLatestMillis, millSeconds)
 }
 
+func (cw *MonitoringService) DeleteMetricMillisBehindLatest(shard string) {
+	m := cw.getOrCreatePerShardMetrics(shard)
+	m.Lock()
+	defer m.Unlock()
+	m.behindLatestMillis = []float64{}
+}
+
 func (cw *MonitoringService) LeaseGained(shard string) {
 	m := cw.getOrCreatePerShardMetrics(shard)
 	m.Lock()
