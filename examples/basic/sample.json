@@ -1,0 +1,8 @@
+{
+  "stream": "kclgosample",
+  "application": "GolangKCLSample",
+  "region": "us-east-1",
+  "checkpoint_interval": 60,
+  "checkpoint_retries": 5,
+  "checkpoint_retry_interval": 5
+}

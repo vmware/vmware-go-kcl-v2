@@ -46,6 +46,8 @@ VMware-Go-KCL matches exactly the same interface and programming model from orig
 * [Troubleshooting](https://docs.aws.amazon.com/streams/latest/dev/troubleshooting-consumers.html)
 * [Advanced Topics](https://docs.aws.amazon.com/streams/latest/dev/advanced-consumers.html)
 
+As a starting point, you can check out the [examples](./examples) directory.
+
 ## Contributing
 
 The vmware-go-kcl-v2 project team welcomes contributions from the community. Before you start working with vmware-go-kcl-v2, please
