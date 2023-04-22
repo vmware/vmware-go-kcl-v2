@@ -41,6 +41,10 @@ type MonitoringService interface {
 	LeaseRenewed(shard string)
 	RecordGetRecordsTime(shard string, time float64)
 	RecordProcessRecordsTime(shard string, time float64)
+	IncrLocalTPSBackoffs(shard string, count int)
+	IncrMaxBytesBackoffs(shard string, count int)
+	IncrThrottlingBackoffs(shard string, count int)
+	IncrGetRecordsErrors(shard string, count int)
 	Shutdown()
 }
 
@@ -60,3 +64,7 @@ func (NoopMonitoringService) LeaseLost(_ string)                           {}
 func (NoopMonitoringService) LeaseRenewed(_ string)                        {}
 func (NoopMonitoringService) RecordGetRecordsTime(_ string, _ float64)     {}
 func (NoopMonitoringService) RecordProcessRecordsTime(_ string, _ float64) {}
+func (NoopMonitoringService) IncrLocalTPSBackoffs(_ string, _ int)         {}
+func (NoopMonitoringService) IncrMaxBytesBackoffs(_ string, _ int)         {}
+func (NoopMonitoringService) IncrThrottlingBackoffs(_ string, _ int)       {}
+func (NoopMonitoringService) IncrGetRecordsErrors(_ string, _ int)         {}

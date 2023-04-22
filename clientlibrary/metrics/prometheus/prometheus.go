@@ -55,6 +55,10 @@ type MonitoringService struct {
 	leaseRenewals      *prom.CounterVec
 	getRecordsTime     *prom.HistogramVec
 	processRecordsTime *prom.HistogramVec
+	localTPSBackoffs   *prom.CounterVec
+	maxBytesBackoffs   *prom.CounterVec
+	throttlingBackoffs *prom.CounterVec
+	getRecordsErrors   *prom.CounterVec
 }
 
 // NewMonitoringService returns a Monitoring service publishing metrics to Prometheus.
@@ -99,6 +103,22 @@ func (p *MonitoringService) Init(appName, streamName, workerID string) error {
 		Name: p.namespace + `_process_records_duration_milliseconds`,
 		Help: "The time taken to process records",
 	}, []string{"kinesisStream", "shard"})
+	p.localTPSBackoffs = prom.NewCounterVec(prom.CounterOpts{
+		Name: p.namespace + `_local_tps_backoffs`,
+		Help: "The number of times backoffs happen from exceeding kinesis read TPS limit",
+	}, []string{"kinesisStream", "shard"})
+	p.maxBytesBackoffs = prom.NewCounterVec(prom.CounterOpts{
+		Name: p.namespace + `_max_bytes_backoffs`,
+		Help: "The number of times backoffs happen from exceeding kinesis max bytes read limit",
+	}, []string{"kinesisStream", "shard"})
+	p.throttlingBackoffs = prom.NewCounterVec(prom.CounterOpts{
+		Name: p.namespace + `_throttling_backoffs`,
+		Help: "The number of times backoffs happen from encountering kinesis read throttling",
+	}, []string{"kinesisStream", "shard"})
+	p.getRecordsErrors = prom.NewCounterVec(prom.CounterOpts{
+		Name: p.namespace + `_get_records_errors`,
+		Help: "The number of times non-retryable errors happen from GetRecords",
+	}, []string{"kinesisStream", "shard"})
 
 	metrics := []prom.Collector{
 		p.processedBytes,
@@ -108,6 +128,10 @@ func (p *MonitoringService) Init(appName, streamName, workerID string) error {
 		p.leaseRenewals,
 		p.getRecordsTime,
 		p.processRecordsTime,
+		p.localTPSBackoffs,
+		p.maxBytesBackoffs,
+		p.throttlingBackoffs,
+		p.getRecordsErrors,
 	}
 	for _, metric := range metrics {
 		err := prom.Register(metric)
@@ -169,4 +193,20 @@ func (p *MonitoringService) RecordGetRecordsTime(shard string, time float64) {
 
 func (p *MonitoringService) RecordProcessRecordsTime(shard string, time float64) {
 	p.processRecordsTime.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Observe(time)
+}
+
+func (p *MonitoringService) IncrLocalTPSBackoffs(shard string, count int) {
+	p.localTPSBackoffs.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Add(float64(count))
+}
+
+func (p *MonitoringService) IncrMaxBytesBackoffs(shard string, count int) {
+	p.maxBytesBackoffs.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Add(float64(count))
+}
+
+func (p *MonitoringService) IncrThrottlingBackoffs(shard string, count int) {
+	p.throttlingBackoffs.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Add(float64(count))
+}
+
+func (p *MonitoringService) IncrGetRecordsErrors(shard string, count int) {
+	p.getRecordsErrors.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Add(float64(count))
 }

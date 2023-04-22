@@ -71,6 +71,10 @@ type cloudWatchMetrics struct {
 	leaseRenewals      int64
 	getRecordsTime     []float64
 	processRecordsTime []float64
+	localTPSBackoffs   int64
+	maxBytesBackoffs   int64
+	throttlingBackoffs int64
+	getRecordsErrors   int64
 }
 
 // NewMonitoringService returns a Monitoring service publishing metrics to CloudWatch.
@@ -201,6 +205,34 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 			Timestamp:  &metricTimestamp,
 			Value:      aws.Float64(float64(metric.leasesHeld)),
 		},
+		{
+			Dimensions: defaultDimensions,
+			MetricName: aws.String("LocalTPSBackoffs"),
+			Unit:       types.StandardUnitCount,
+			Timestamp:  &metricTimestamp,
+			Value:      aws.Float64(float64(metric.localTPSBackoffs)),
+		},
+		{
+			Dimensions: defaultDimensions,
+			MetricName: aws.String("MaxBytesBackoffs"),
+			Unit:       types.StandardUnitCount,
+			Timestamp:  &metricTimestamp,
+			Value:      aws.Float64(float64(metric.maxBytesBackoffs)),
+		},
+		{
+			Dimensions: defaultDimensions,
+			MetricName: aws.String("ThrottlingBackoffs"),
+			Unit:       types.StandardUnitCount,
+			Timestamp:  &metricTimestamp,
+			Value:      aws.Float64(float64(metric.throttlingBackoffs)),
+		},
+		{
+			Dimensions: defaultDimensions,
+			MetricName: aws.String("GetRecordsErrors"),
+			Unit:       types.StandardUnitCount,
+			Timestamp:  &metricTimestamp,
+			Value:      aws.Float64(float64(metric.getRecordsErrors)),
+		},
 	}
 
 	if len(metric.behindLatestMillis) > 0 {
@@ -258,6 +290,10 @@ func (cw *MonitoringService) flushShard(shard string, metric *cloudWatchMetrics)
 		metric.leaseRenewals = 0
 		metric.getRecordsTime = []float64{}
 		metric.processRecordsTime = []float64{}
+		metric.localTPSBackoffs = 0
+		metric.maxBytesBackoffs = 0
+		metric.throttlingBackoffs = 0
+		metric.getRecordsErrors = 0
 	} else {
 		cw.logger.Errorf("Error in publishing cloudwatch metrics. Error: %+v", err)
 	}
@@ -325,11 +361,40 @@ func (cw *MonitoringService) RecordGetRecordsTime(shard string, time float64) {
 	defer m.Unlock()
 	m.getRecordsTime = append(m.getRecordsTime, time)
 }
+
 func (cw *MonitoringService) RecordProcessRecordsTime(shard string, time float64) {
 	m := cw.getOrCreatePerShardMetrics(shard)
 	m.Lock()
 	defer m.Unlock()
 	m.processRecordsTime = append(m.processRecordsTime, time)
+}
+
+func (cw *MonitoringService) IncrLocalTPSBackoffs(shard string, count int) {
+	m := cw.getOrCreatePerShardMetrics(shard)
+	m.Lock()
+	defer m.Unlock()
+	m.localTPSBackoffs += int64(count)
+}
+
+func (cw *MonitoringService) IncrMaxBytesBackoffs(shard string, count int) {
+	m := cw.getOrCreatePerShardMetrics(shard)
+	m.Lock()
+	defer m.Unlock()
+	m.maxBytesBackoffs += int64(count)
+}
+
+func (cw *MonitoringService) IncrThrottlingBackoffs(shard string, count int) {
+	m := cw.getOrCreatePerShardMetrics(shard)
+	m.Lock()
+	defer m.Unlock()
+	m.throttlingBackoffs += int64(count)
+}
+
+func (cw *MonitoringService) IncrGetRecordsErrors(shard string, count int) {
+	m := cw.getOrCreatePerShardMetrics(shard)
+	m.Lock()
+	defer m.Unlock()
+	m.getRecordsErrors += int64(count)
 }
 
 func (cw *MonitoringService) getOrCreatePerShardMetrics(shard string) *cloudWatchMetrics {
