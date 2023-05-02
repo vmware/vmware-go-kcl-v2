@@ -33,6 +33,8 @@ import (
 	"context"
 	"crypto/rand"
 	"errors"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodbstreams"
+	"github.com/vmware/vmware-go-kcl-v2/clientlibrary/streams"
 	"math/big"
 	"sync"
 	"time"
@@ -60,7 +62,7 @@ type Worker struct {
 
 	processorFactory kcl.IRecordProcessorFactory
 	kclConfig        *config.KinesisClientLibConfiguration
-	kc               *kinesis.Client
+	kc               streams.Client
 	checkpointer     chk.Checkpointer
 	mService         metrics.MonitoringService
 
@@ -185,7 +187,7 @@ func (w *Worker) initialize() error {
 			// no need to move forward
 			log.Fatalf("Failed in loading Kinesis default config for creating Worker: %+v", err)
 		}
-		w.kc = kinesis.NewFromConfig(cfg)
+		w.kc = streams.NewDynamodbStreamClient(dynamodbstreams.NewFromConfig(cfg))
 	} else {
 		log.Infof("Use custom Kinesis service.")
 	}
