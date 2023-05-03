@@ -1,4 +1,4 @@
-module github.com/ravikiran-zoman/vmware-go-kcl-v2
+module github.com/vmware/vmware-go-kcl-v2
 
 go 1.17
 
@@ -18,12 +18,12 @@ require (
 	github.com/rs/zerolog v1.26.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/stretchr/testify v1.8.1
-	github.com/vmware/vmware-go-kcl-v2 v0.0.0-20230407010916-b12921da2398
 	go.uber.org/zap v1.20.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 )
 
 require (
+	github.com/BurntSushi/toml v0.4.1 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.33 // indirect
@@ -50,5 +50,3 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/vmware/vmware-go-kcl-v2 v0.0.0-20230407010916-b12921da2398 => github.com/ravikiran-zoman/vmware-go-kcl-v2 v0.0.4
