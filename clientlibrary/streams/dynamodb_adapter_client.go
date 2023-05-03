@@ -58,7 +58,7 @@ func (d DynamodbStreamAdapterClient) ListShards(ctx context.Context, params *kin
 	log.Info(fmt.Sprintf("ListShards >>> request %v", string(req)))
 	var maxResults int32 = 100
 	if params.MaxResults != nil {
-		if 100 >= *params.MaxResults {
+		if *params.MaxResults >= 100 {
 			params.MaxResults = &maxResults
 		}
 	}
