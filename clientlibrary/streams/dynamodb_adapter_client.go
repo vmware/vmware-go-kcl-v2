@@ -57,8 +57,10 @@ func (d DynamodbStreamAdapterClient) ListShards(ctx context.Context, params *kin
 	req, _ := json.Marshal(params)
 	log.Info(fmt.Sprintf("ListShards >>> request %v", string(req)))
 	var maxResults int32 = 100
-	if *params.MaxResults >= 100 {
-		params.MaxResults = &maxResults
+	if params.MaxResults != nil {
+		if 100 >= *params.MaxResults {
+			params.MaxResults = &maxResults
+		}
 	}
 	dynamoOutput, err := d.internalClient.DescribeStream(ctx, &dynamodbstreams.DescribeStreamInput{
 		ExclusiveStartShardId: params.ExclusiveStartShardId,
@@ -279,8 +281,10 @@ func (d DynamodbStreamAdapterClient) convertShardIteratorInput(kinesisInput *kin
 
 func (d DynamodbStreamAdapterClient) convertGetRecordsInput(params *kinesis.GetRecordsInput) *dynamodbstreams.GetRecordsInput {
 	var dynamoMaxLimit int32 = 1000
-	if *params.Limit >= 10000 {
-		params.Limit = &dynamoMaxLimit
+	if params.Limit != nil {
+		if *params.Limit >= 10000 {
+			params.Limit = &dynamoMaxLimit
+		}
 	}
 	dynamoInput := &dynamodbstreams.GetRecordsInput{
 		Limit:         params.Limit,
