@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	ktypes "github.com/aws/aws-sdk-go-v2/service/kinesis/types"
 	log "github.com/sirupsen/logrus"
+	"math"
+	"time"
 )
 
 type DynamodbStreamAdapterClient struct {
@@ -299,6 +301,13 @@ func (d DynamodbStreamAdapterClient) convertGetRecordsOutput(dynamoOutput *dynam
 		kinesisOutput.Records = make([]ktypes.Record, 0)
 		kinesisOutput.ResultMetadata = dynamoOutput.ResultMetadata
 		kinesisOutput.NextShardIterator = dynamoOutput.NextShardIterator
+		lastRecord := dynamoOutput.Records[len(dynamoOutput.Records)-1]
+		var lastRecordCreateTime *time.Time
+		if lastRecord.Dynamodb != nil && lastRecord.Dynamodb.ApproximateCreationDateTime != nil {
+			lastRecordCreateTime = lastRecord.Dynamodb.ApproximateCreationDateTime
+		}
+		millisBehindLatest := int64(math.Max(float64(time.Now().Sub(*lastRecordCreateTime).Milliseconds()), float64(0)))
+		kinesisOutput.MillisBehindLatest = &millisBehindLatest
 	}
 	for _, record := range dynamoOutput.Records {
 		reqBodyBytes := new(bytes.Buffer)
