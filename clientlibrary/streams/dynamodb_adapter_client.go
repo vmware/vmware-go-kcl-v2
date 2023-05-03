@@ -238,9 +238,9 @@ func (d DynamodbStreamAdapterClient) convertListStreamsOutput(dOutput *dynamodbs
 	// Set StreamNames field using StreamDescriptionList field from output
 	kinesisOutput.StreamNames = nil
 	if dOutput.Streams != nil {
-		kinesisOutput.StreamNames = make([]string, len(dOutput.Streams))
-		for i, stream := range dOutput.Streams {
-			kinesisOutput.StreamNames[i] = *stream.StreamArn
+		kinesisOutput.StreamNames = make([]string, 0)
+		for _, stream := range dOutput.Streams {
+			kinesisOutput.StreamNames = append(kinesisOutput.StreamNames, *stream.StreamArn)
 		}
 	}
 	kinesisOutput.ResultMetadata = dOutput.ResultMetadata
@@ -296,7 +296,7 @@ func (d DynamodbStreamAdapterClient) convertGetRecordsInput(params *kinesis.GetR
 func (d DynamodbStreamAdapterClient) convertGetRecordsOutput(dynamoOutput *dynamodbstreams.GetRecordsOutput) *kinesis.GetRecordsOutput {
 	kinesisOutput := kinesis.GetRecordsOutput{}
 	if dynamoOutput != nil && len(dynamoOutput.Records) != 0 {
-		kinesisOutput.Records = make([]ktypes.Record, len(dynamoOutput.Records))
+		kinesisOutput.Records = make([]ktypes.Record, 0)
 		kinesisOutput.ResultMetadata = dynamoOutput.ResultMetadata
 		kinesisOutput.NextShardIterator = dynamoOutput.NextShardIterator
 	}
@@ -320,7 +320,7 @@ func (d DynamodbStreamAdapterClient) convertListShardsOutput(output *dynamodbstr
 	}
 	if output != nil {
 		if output.StreamDescription != nil && len(output.StreamDescription.Shards) != 0 {
-			kinesisOutput.Shards = make([]ktypes.Shard, len(output.StreamDescription.Shards))
+			kinesisOutput.Shards = make([]ktypes.Shard, 0)
 		}
 		for _, shard := range output.StreamDescription.Shards {
 			kinesisOutput.Shards = append(kinesisOutput.Shards, ktypes.Shard{
@@ -349,7 +349,7 @@ func (d DynamodbStreamAdapterClient) convertDescribeStreamOutput(output *dynamod
 				StreamName:              output.StreamDescription.StreamArn,
 				StreamStatus:            ktypes.StreamStatus(output.StreamDescription.StreamStatus),
 				StreamCreationTimestamp: output.StreamDescription.CreationRequestDateTime,
-				Shards:                  make([]ktypes.Shard, len(output.StreamDescription.Shards)),
+				Shards:                  make([]ktypes.Shard, 0),
 			}
 		}
 		for _, shard := range output.StreamDescription.Shards {
