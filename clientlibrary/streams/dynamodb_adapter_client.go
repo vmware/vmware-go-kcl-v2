@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodbstreams"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodbstreams/types"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
@@ -17,9 +18,11 @@ type DynamodbStreamAdapterClient struct {
 }
 
 func (d DynamodbStreamAdapterClient) ListStreams(ctx context.Context, params *kinesis.ListStreamsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListStreamsOutput, error) {
-	log.Info("ListStreams >>> request ", params)
+	req, _ := json.Marshal(params)
+	log.Info(fmt.Sprintf("ListStreams request %v", string(req)))
 	listStreamsOutput, err := d.internalClient.ListStreams(ctx, d.convertListStreamsInput(params))
-	log.Info("ListStreams >>> response ", params)
+	out, _ := json.Marshal(listStreamsOutput)
+	log.Info(fmt.Sprintf("ListStreams >>> response %v", string(out)))
 	if err != nil {
 		return nil, err
 	}
@@ -27,9 +30,11 @@ func (d DynamodbStreamAdapterClient) ListStreams(ctx context.Context, params *ki
 }
 
 func (d DynamodbStreamAdapterClient) GetShardIterator(ctx context.Context, params *kinesis.GetShardIteratorInput, optFns ...func(*kinesis.Options)) (*kinesis.GetShardIteratorOutput, error) {
-	log.Info("GetShardIterator >>> request ", params)
+	requestParamsString, _ := json.Marshal(params)
+	log.Info(fmt.Sprintf("GetShardIterator >>> request %v", string(requestParamsString)))
 	shardIteratorOutput, err := d.internalClient.GetShardIterator(ctx, d.convertShardIteratorInput(params))
-	log.Info("GetShardIterator >>> response ", params)
+	out, _ := json.Marshal(shardIteratorOutput)
+	log.Info(fmt.Sprintf("GetShardIterator >>> response %v", string(out)))
 	if err != nil {
 		return nil, err
 	}
@@ -37,18 +42,20 @@ func (d DynamodbStreamAdapterClient) GetShardIterator(ctx context.Context, param
 }
 
 func (d DynamodbStreamAdapterClient) GetRecords(ctx context.Context, params *kinesis.GetRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.GetRecordsOutput, error) {
-	log.Info("GetRecords >>> request ", params)
-	getRecordsInput, err := d.internalClient.GetRecords(ctx, d.convertGetRecordsInput(params))
-	log.Info("GetRecords >>> output ", params)
+	req, _ := json.Marshal(params)
+	log.Info(fmt.Sprintf(fmt.Sprintf("GetRecords >>> request %v", string(req))))
+	getRecordsOutput, err := d.internalClient.GetRecords(ctx, d.convertGetRecordsInput(params))
+	out, _ := json.Marshal(getRecordsOutput)
+	log.Info(fmt.Sprintf("GetRecords >>> output %v", string(out)))
 	if err != nil {
 		return nil, err
 	}
-	return d.convertGetRecordsOutput(getRecordsInput), nil
+	return d.convertGetRecordsOutput(getRecordsOutput), nil
 }
 
 func (d DynamodbStreamAdapterClient) ListShards(ctx context.Context, params *kinesis.ListShardsInput, optFns ...func(*kinesis.Options)) (*kinesis.ListShardsOutput, error) {
-
-	log.Info("ListShards >>> request ", params)
+	req, _ := json.Marshal(params)
+	log.Info(fmt.Sprintf("ListShards >>> request %v", string(req)))
 	var maxResults int32 = 100
 	if *params.MaxResults >= 100 {
 		params.MaxResults = &maxResults
@@ -58,7 +65,8 @@ func (d DynamodbStreamAdapterClient) ListShards(ctx context.Context, params *kin
 		Limit:                 params.MaxResults,
 		StreamArn:             params.StreamName,
 	})
-	log.Info("ListShards >>> output ", dynamoOutput)
+	out, _ := json.Marshal(dynamoOutput)
+	log.Info(fmt.Sprintf("ListShards >>> output %v", string(out)))
 	if err != nil {
 		return nil, err
 	}

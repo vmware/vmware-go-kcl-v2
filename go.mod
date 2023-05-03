@@ -1,7 +1,5 @@
 module github.com/ravikiran-zoman/vmware-go-kcl-v2
 
-replace github.com/vmware/vmware-go-kcl-v2 v0.0.0-20230407010916-b12921da2398 => github.com/ravikiran-zoman/vmware-go-kcl-v2 v0.0.1
-
 go 1.17
 
 require (
@@ -52,3 +50,5 @@ require (
 	google.golang.org/protobuf v1.27.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/vmware/vmware-go-kcl-v2 v0.0.0-20230407010916-b12921da2398 => github.com/ravikiran-zoman/vmware-go-kcl-v2 v0.0.4
