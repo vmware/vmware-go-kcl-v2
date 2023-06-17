@@ -20,7 +20,7 @@
 // Package checkpoint
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
-// # Copyright 2018 Patrick robinson
+// Copyright 2018 Patrick robinson.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
@@ -49,6 +49,10 @@ import (
 const (
 	// NumMaxRetries is the max times of doing retry
 	NumMaxRetries = 10
+)
+
+var (
+	NoLeaseOwnerErr = errors.New("no LeaseOwner in checkpoints table")
 )
 
 // DynamoCheckpoint implements the Checkpoint interface using DynamoDB as a backend
@@ -129,7 +133,7 @@ func (checkpointer *DynamoCheckpoint) Init() error {
 // GetLease attempts to gain a lock on the given shard
 func (checkpointer *DynamoCheckpoint) GetLease(shard *par.ShardStatus, newAssignTo string) error {
 	newLeaseTimeout := time.Now().Add(time.Duration(checkpointer.LeaseDuration) * time.Millisecond).UTC()
-	newLeaseTimeoutString := newLeaseTimeout.Format(time.RFC3339)
+	newLeaseTimeoutString := newLeaseTimeout.Format(time.RFC3339Nano)
 	currentCheckpoint, err := checkpointer.getItem(shard.ID)
 	if err != nil {
 		return err
@@ -161,7 +165,7 @@ func (checkpointer *DynamoCheckpoint) GetLease(shard *par.ShardStatus, newAssign
 		assignedTo := assignedVar.(*types.AttributeValueMemberS).Value
 		leaseTimeout := leaseVar.(*types.AttributeValueMemberS).Value
 
-		currentLeaseTimeout, err := time.Parse(time.RFC3339, leaseTimeout)
+		currentLeaseTimeout, err := time.Parse(time.RFC3339Nano, leaseTimeout)
 		if err != nil {
 			return err
 		}
@@ -246,7 +250,7 @@ func (checkpointer *DynamoCheckpoint) GetLease(shard *par.ShardStatus, newAssign
 
 // CheckpointSequence writes a checkpoint at the designated sequence ID
 func (checkpointer *DynamoCheckpoint) CheckpointSequence(shard *par.ShardStatus) error {
-	leaseTimeout := shard.GetLeaseTimeout().UTC().Format(time.RFC3339)
+	leaseTimeout := shard.GetLeaseTimeout().UTC().Format(time.RFC3339Nano)
 	marshalledCheckpoint := map[string]types.AttributeValue{
 		LeaseKeyKey: &types.AttributeValueMemberS{
 			Value: shard.ID,
@@ -290,7 +294,7 @@ func (checkpointer *DynamoCheckpoint) FetchCheckpoint(shard *par.ShardStatus) er
 
 	// Use up-to-date leaseTimeout to avoid ConditionalCheckFailedException when claiming
 	if leaseTimeout, ok := checkpoint[LeaseTimeoutKey]; ok && leaseTimeout.(*types.AttributeValueMemberS).Value != "" {
-		currentLeaseTimeout, err := time.Parse(time.RFC3339, leaseTimeout.(*types.AttributeValueMemberS).Value)
+		currentLeaseTimeout, err := time.Parse(time.RFC3339Nano, leaseTimeout.(*types.AttributeValueMemberS).Value)
 		if err != nil {
 			return err
 		}
@@ -336,6 +340,23 @@ func (checkpointer *DynamoCheckpoint) RemoveLeaseOwner(shardID string) error {
 	return err
 }
 
+// GetLeaseOwner returns current lease owner of given shard in checkpoints table
+func (checkpointer *DynamoCheckpoint) GetLeaseOwner(shardID string) (string, error) {
+	currentCheckpoint, err := checkpointer.getItem(shardID)
+	if err != nil {
+		return "", err
+	}
+
+	assignedVar, assignedToOk := currentCheckpoint[LeaseOwnerKey]
+
+	if !assignedToOk {
+		return "", NoLeaseOwnerErr
+	}
+
+	return assignedVar.(*types.AttributeValueMemberS).Value, nil
+
+}
+
 // ListActiveWorkers returns a map of workers and their shards
 func (checkpointer *DynamoCheckpoint) ListActiveWorkers(shardStatus map[string]*par.ShardStatus) (map[string][]*par.ShardStatus, error) {
 	err := checkpointer.syncLeases(shardStatus)
@@ -370,7 +391,7 @@ func (checkpointer *DynamoCheckpoint) ClaimShard(shard *par.ShardStatus, claimID
 	if err != nil && err != ErrSequenceIDNotFound {
 		return err
 	}
-	leaseTimeoutString := shard.GetLeaseTimeout().Format(time.RFC3339)
+	leaseTimeoutString := shard.GetLeaseTimeout().Format(time.RFC3339Nano)
 
 	conditionalExpression := `ShardID = :id AND LeaseTimeout = :lease_timeout AND attribute_not_exists(ClaimRequest)`
 	expressionAttributeValues := map[string]types.AttributeValue{
@@ -441,6 +462,12 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 	}
 
 	scanOutput, err := checkpointer.svc.Scan(context.TODO(), input)
+
+	if err != nil {
+		log.Debugf("Error performing DynamoDB Scan. Error: %+v ", err)
+		return err
+	}
+
 	results := scanOutput.Items
 	for _, result := range results {
 		shardId, foundShardId := result[LeaseKeyKey]
@@ -456,10 +483,6 @@ func (checkpointer *DynamoCheckpoint) syncLeases(shardStatus map[string]*par.Sha
 		}
 	}
 
-	if err != nil {
-		log.Debugf("Error performing SyncLeases. Error: %+v ", err)
-		return err
-	}
 	log.Debugf("Lease sync completed. Next lease sync will occur in %s", time.Duration(checkpointer.kclConfig.LeaseSyncingTimeIntervalMillis)*time.Millisecond)
 	return nil
 }

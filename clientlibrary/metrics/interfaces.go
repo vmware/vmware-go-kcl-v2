@@ -20,7 +20,7 @@
 // Package metrics
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
-// Copyright 2018 Patrick robinson
+// Copyright 2018 Patrick robinson.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
@@ -35,6 +35,7 @@ type MonitoringService interface {
 	IncrRecordsProcessed(shard string, count int)
 	IncrBytesProcessed(shard string, count int64)
 	MillisBehindLatest(shard string, milliSeconds float64)
+	DeleteMetricMillisBehindLatest(shard string)
 	LeaseGained(shard string)
 	LeaseLost(shard string)
 	LeaseRenewed(shard string)
@@ -53,6 +54,7 @@ func (NoopMonitoringService) Shutdown()                 {}
 func (NoopMonitoringService) IncrRecordsProcessed(_ string, _ int)         {}
 func (NoopMonitoringService) IncrBytesProcessed(_ string, _ int64)         {}
 func (NoopMonitoringService) MillisBehindLatest(_ string, _ float64)       {}
+func (NoopMonitoringService) DeleteMetricMillisBehindLatest(_ string)      {}
 func (NoopMonitoringService) LeaseGained(_ string)                         {}
 func (NoopMonitoringService) LeaseLost(_ string)                           {}
 func (NoopMonitoringService) LeaseRenewed(_ string)                        {}

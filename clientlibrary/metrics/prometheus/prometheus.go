@@ -20,7 +20,7 @@
 // Package prometheus
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
-// # Copyright 2018 Patrick robinson
+// Copyright 2018 Patrick robinson.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
@@ -145,6 +145,10 @@ func (p *MonitoringService) IncrBytesProcessed(shard string, count int64) {
 
 func (p *MonitoringService) MillisBehindLatest(shard string, millSeconds float64) {
 	p.behindLatestMillis.With(prom.Labels{"shard": shard, "kinesisStream": p.streamName}).Set(millSeconds)
+}
+
+func (p *MonitoringService) DeleteMetricMillisBehindLatest(shard string) {
+	p.behindLatestMillis.Delete(prom.Labels{"shard": shard, "kinesisStream": p.streamName})
 }
 
 func (p *MonitoringService) LeaseGained(shard string) {

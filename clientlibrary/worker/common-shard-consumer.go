@@ -21,6 +21,7 @@
 package worker
 
 import (
+	"context"
 	"sync"
 	"time"
 
@@ -40,10 +41,16 @@ type shardConsumer interface {
 	getRecords() error
 }
 
+type KinesisSubscriberGetter interface {
+	SubscribeToShard(ctx context.Context, params *kinesis.SubscribeToShardInput, optFns ...func(*kinesis.Options)) (*kinesis.SubscribeToShardOutput, error)
+	GetShardIterator(ctx context.Context, params *kinesis.GetShardIteratorInput, optFns ...func(*kinesis.Options)) (*kinesis.GetShardIteratorOutput, error)
+	GetRecords(ctx context.Context, params *kinesis.GetRecordsInput, optFns ...func(*kinesis.Options)) (*kinesis.GetRecordsOutput, error)
+}
+
 // commonShardConsumer implements common functionality for regular and enhanced fan-out consumers
 type commonShardConsumer struct {
 	shard           *par.ShardStatus
-	kc              *kinesis.Client
+	kc              KinesisSubscriberGetter
 	checkpointer    chk.Checkpointer
 	recordProcessor kcl.IRecordProcessor
 	kclConfig       *config.KinesisClientLibConfiguration
@@ -51,7 +58,7 @@ type commonShardConsumer struct {
 }
 
 // Cleanup the internal lease cache
-func (sc *commonShardConsumer) releaseLease() {
+func (sc *commonShardConsumer) releaseLease(shard string) {
 	log := sc.kclConfig.Logger
 	log.Infof("Release lease for shard %s", sc.shard.ID)
 	sc.shard.SetLeaseOwner("")
@@ -59,10 +66,11 @@ func (sc *commonShardConsumer) releaseLease() {
 	// Release the lease by wiping out the lease owner for the shard
 	// Note: we don't need to do anything in case of error here and shard lease will eventually be expired.
 	if err := sc.checkpointer.RemoveLeaseOwner(sc.shard.ID); err != nil {
-		log.Errorf("Failed to release shard lease or shard: %s Error: %+v", sc.shard.ID, err)
+		log.Debugf("Failed to release shard lease or shard: %s Error: %+v", sc.shard.ID, err)
 	}
 
 	// reporting lease lose metrics
+	sc.mService.DeleteMetricMillisBehindLatest(shard)
 	sc.mService.LeaseLost(sc.shard.ID)
 }
 
@@ -165,7 +173,6 @@ func (sc *commonShardConsumer) processRecords(getRecordsStartTime time.Time, rec
 		input.CacheEntryTime = &getRecordsStartTime
 		input.CacheExitTime = &processRecordsStartTime
 		sc.recordProcessor.ProcessRecords(input)
-
 		processedRecordsTiming := time.Since(processRecordsStartTime).Milliseconds()
 		sc.mService.RecordProcessRecordsTime(sc.shard.ID, float64(processedRecordsTiming))
 	}

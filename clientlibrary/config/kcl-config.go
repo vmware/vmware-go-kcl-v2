@@ -102,6 +102,8 @@ func NewKinesisClientLibConfigWithCredentials(applicationName, streamName, regio
 		LeaseStealingIntervalMillis:                      DefaultLeaseStealingIntervalMillis,
 		LeaseStealingClaimTimeoutMillis:                  DefaultLeaseStealingClaimTimeoutMillis,
 		LeaseSyncingTimeIntervalMillis:                   DefaultLeaseSyncingIntervalMillis,
+		LeaseRefreshWaitTime:                             DefaultLeaseRefreshWaitTime,
+		MaxRetryCount:                                    DefaultMaxRetryCount,
 		Logger:                                           logger.GetDefaultLogger(),
 	}
 }
@@ -145,6 +147,12 @@ func (c *KinesisClientLibConfiguration) WithFailoverTimeMillis(failoverTimeMilli
 func (c *KinesisClientLibConfiguration) WithLeaseRefreshPeriodMillis(leaseRefreshPeriodMillis int) *KinesisClientLibConfiguration {
 	checkIsValuePositive("LeaseRefreshPeriodMillis", leaseRefreshPeriodMillis)
 	c.LeaseRefreshPeriodMillis = leaseRefreshPeriodMillis
+	return c
+}
+
+func (c *KinesisClientLibConfiguration) WithLeaseRefreshWaitTime(leaseRefreshWaitTime int) *KinesisClientLibConfiguration {
+	checkIsValuePositive("LeaseRefreshWaitTime", leaseRefreshWaitTime)
+	c.LeaseRefreshWaitTime = leaseRefreshWaitTime
 	return c
 }
 
@@ -208,6 +216,13 @@ func (c *KinesisClientLibConfiguration) WithLogger(logger logger.Logger) *Kinesi
 		log.Panic("Logger cannot be null")
 	}
 	c.Logger = logger
+	return c
+}
+
+// WithMaxRetryCount sets the max retry count in case of error.
+func (c *KinesisClientLibConfiguration) WithMaxRetryCount(maxRetryCount int) *KinesisClientLibConfiguration {
+	checkIsValuePositive("maxRetryCount", maxRetryCount)
+	c.MaxRetryCount = maxRetryCount
 	return c
 }
 

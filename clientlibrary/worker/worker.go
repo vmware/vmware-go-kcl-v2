@@ -20,7 +20,7 @@
 // Package worker
 // The implementation is derived from https://github.com/patrobinson/gokini
 //
-// # Copyright 2018 Patrick robinson
+// Copyright 2018 Patrick robinson.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 //
@@ -160,11 +160,15 @@ func (w *Worker) initialize() error {
 		log.Infof("Creating Kinesis client")
 
 		resolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{
-				PartitionID:   "aws",
-				URL:           w.kclConfig.KinesisEndpoint,
-				SigningRegion: w.regionName,
-			}, nil
+			if service == kinesis.ServiceID && len(w.kclConfig.KinesisEndpoint) > 0 {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           w.kclConfig.KinesisEndpoint,
+					SigningRegion: w.regionName,
+				}, nil
+			}
+			// returning EndpointNotFoundError will allow the service to fallback to it's default resolution
+			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		})
 
 		cfg, err := awsConfig.LoadDefaultConfig(
@@ -272,6 +276,14 @@ func (w *Worker) eventLoop() {
 		rnd, _ := rand.Int(rand.Reader, big.NewInt(int64(w.kclConfig.ShardSyncIntervalMillis)))
 		shardSyncSleep := w.kclConfig.ShardSyncIntervalMillis/2 + int(rnd.Int64())
 
+		select {
+		case <-*w.stop:
+			log.Infof("Shutting down...")
+			return
+		case <-time.After(time.Duration(shardSyncSleep) * time.Millisecond):
+			log.Debugf("Waited %d ms to sync shards...", shardSyncSleep)
+		}
+
 		err := w.syncShard()
 		if err != nil {
 			log.Errorf("Error syncing shards: %+v, Retrying in %d ms...", err, shardSyncSleep)
@@ -362,14 +374,6 @@ func (w *Worker) eventLoop() {
 			if err != nil {
 				log.Warnf("Error in rebalance: %+v", err)
 			}
-		}
-
-		select {
-		case <-*w.stop:
-			log.Infof("Shutting down...")
-			return
-		case <-time.After(time.Duration(shardSyncSleep) * time.Millisecond):
-			log.Debugf("Waited %d ms to sync shards...", shardSyncSleep)
 		}
 	}
 }

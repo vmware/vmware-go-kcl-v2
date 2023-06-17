@@ -46,7 +46,7 @@ type FanOutShardConsumer struct {
 // getRecords subscribes to a shard and reads events from it.
 // Precondition: it currently has the lease on the shard.
 func (sc *FanOutShardConsumer) getRecords() error {
-	defer sc.releaseLease()
+	defer sc.releaseLease(sc.shard.ID)
 
 	log := sc.kclConfig.Logger
 
@@ -103,6 +103,8 @@ func (sc *FanOutShardConsumer) getRecords() error {
 				return err
 			}
 			refreshLeaseTimer = time.After(time.Until(sc.shard.LeaseTimeout.Add(-time.Duration(sc.kclConfig.LeaseRefreshPeriodMillis) * time.Millisecond)))
+			// log metric for renewed lease for worker
+			sc.mService.LeaseRenewed(sc.shard.ID)
 		case event, ok := <-shardSub.GetStream().Events():
 			if !ok {
 				// need to resubscribe to shard
