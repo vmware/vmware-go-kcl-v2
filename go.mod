@@ -23,6 +23,8 @@ require (
 
 require (
 	github.com/BurntSushi/toml v0.4.1 // indirect
+	github.com/DataDog/datadog-go/v5 v5.3.0 // indirect
+	github.com/Microsoft/go-winio v0.5.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.0.0 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.8.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.2 // indirect
