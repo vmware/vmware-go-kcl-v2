@@ -332,6 +332,10 @@ func (cw *MonitoringService) RecordProcessRecordsTime(shard string, time float64
 	m.processRecordsTime = append(m.processRecordsTime, time)
 }
 
+func (cw *MonitoringService) DeleteMetricMillisBehindLatest(shard string) {
+	// not implemented
+}
+
 func (cw *MonitoringService) getOrCreatePerShardMetrics(shard string) *cloudWatchMetrics {
 	var i interface{}
 	var ok bool
